@@ -1,0 +1,6 @@
+# Netlify / Cloudflare Pages headers.
+# Apple Universal Links require the association file to be served as JSON.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+/.well-known/assetlinks.json
+  Content-Type: application/json

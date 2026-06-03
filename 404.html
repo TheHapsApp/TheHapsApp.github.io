@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found — Haps</title>
+<link rel="icon" href="/assets/haps-symbol.png">
+<link rel="stylesheet" href="/styles.css">
+<script>
+  // On static hosts without rewrite rules (e.g. GitHub Pages), shared
+  // /event/{id} links land here — forward them to the smart open page.
+  (function () {
+    var m = location.pathname.match(/\/event\/([A-Za-z0-9\-]+)/);
+    if (m) location.replace('/event.html?id=' + m[1]);
+  })();
+</script>
+</head>
+<body>
+  <div class="event-wrap">
+    <img class="symbol" src="/assets/haps-symbol.png" alt="Haps">
+    <h1 style="color:var(--ink);font-size:1.6rem;margin:.2rem 0 .4rem">Page not found</h1>
+    <p style="color:var(--muted)">That page doesn't exist (or moved).</p>
+    <a class="btn btn-primary" href="/">Go to thehaps.app</a>
+  </div>
+</body>
+</html>

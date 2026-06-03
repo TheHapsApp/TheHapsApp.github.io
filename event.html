@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open in Haps</title>
+<meta name="description" content="Open this event in the Haps app.">
+<link rel="icon" href="/assets/haps-symbol.png">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="event-wrap">
+    <img class="symbol" src="/assets/haps-symbol.png" alt="Haps">
+    <h1 style="color:var(--ink);font-size:1.5rem;margin:.2rem 0 .4rem">Open this event in Haps</h1>
+    <p style="color:var(--muted);margin-top:0" id="eid">Loading…</p>
+
+    <a class="btn btn-primary" id="openApp" href="#">Open in the Haps app</a>
+    <a class="btn btn-ghost soon" href="#" aria-disabled="true">Download on the App Store — coming soon</a>
+    <a class="btn btn-ghost soon" href="#" aria-disabled="true">Get it on Google Play — coming soon</a>
+    <p style="margin-top:1.5rem"><a href="/">← Back to thehaps.app</a></p>
+  </div>
+
+  <script>
+    // The event id can arrive as /event/{id} (rewrite) or ?id={id} (404 fallback).
+    (function () {
+      var m = location.pathname.match(/\/event\/([A-Za-z0-9\-]+)/);
+      var id = (m && m[1]) || new URLSearchParams(location.search).get('id') || '';
+      var url = 'https://thehaps.app/event/' + id;
+      document.getElementById('eid').textContent = id ? ('Event ' + id) : 'No event specified.';
+      var open = document.getElementById('openApp');
+      open.href = url;
+      // Re-trigger the universal/app link; if the app is installed and verified
+      // it opens directly. Otherwise this page stays put (store links above).
+      open.addEventListener('click', function (e) { e.preventDefault(); location.href = url; });
+    })();
+  </script>
+</body>
+</html>

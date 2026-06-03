@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Haps</title>
+<meta name="description" content="How the Haps event-discovery app collects, uses, and protects your data.">
+<link rel="canonical" href="https://thehaps.app/privacy">
+<link rel="icon" href="/assets/haps-symbol.png">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/"><img src="/assets/haps-symbol.png" alt=""> haps</a>
+    <span class="links"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></span>
+  </nav>
+
+  <main class="legal">
+    <h1>Privacy Policy for Haps</h1>
+    <p class="updated">Last updated: 2026-06-03</p>
+
+    <h2>Who we are</h2>
+    <p>Haps is an event-discovery app operated by <strong>Haps App</strong> (&ldquo;we,&rdquo; &ldquo;us&rdquo;). You can reach us at <strong>admin@thehaps.app</strong>.</p>
+    <p>This policy explains what we collect, why, and what you control.</p>
+
+    <h2>What we collect</h2>
+    <table>
+      <thead><tr><th>Data</th><th>Why we collect it</th><th>Where it&rsquo;s stored</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Approximate and precise location</strong></td><td>To show you events near you and calculate distance. Used only while the app is open.</td><td>On your device + cached in our backend during a session if you&rsquo;ve signed in</td></tr>
+        <tr><td><strong>Email address, display name, profile picture</strong></td><td>To create your account and sync your saves across devices</td><td>Supabase (our backend host)</td></tr>
+        <tr><td><strong>Saved events, dismissed events, check-ins</strong></td><td>To keep your favorites and history in sync</td><td>Supabase + your device</td></tr>
+        <tr><td><strong>Device identifiers (Supabase session tokens)</strong></td><td>To keep you signed in</td><td>On your device only (hardware-encrypted: Android Keystore / iOS Keychain)</td></tr>
+        <tr><td><strong>An app-generated device ID</strong> (random, not a hardware/advertising ID)</td><td>To keep your saves and check-ins working before you sign in</td><td>Your device + our backend (Supabase)</td></tr>
+        <tr><td><strong>App diagnostics (crash reports)</strong></td><td>To fix bugs</td><td>We do not currently collect crash reports</td></tr>
+      </tbody>
+    </table>
+    <p>We do <strong>not</strong> collect:</p>
+    <ul>
+      <li>Contacts, photos, microphone, or camera input</li>
+      <li>Advertising identifiers (IDFA, GAID)</li>
+      <li>Browsing history outside the app</li>
+      <li>Anything you haven&rsquo;t explicitly given the app permission to access</li>
+    </ul>
+
+    <h2>How we use it</h2>
+    <p>Strictly to make the app work: showing you events, syncing your saves between your phones, signing you in. We do not sell your data. We do not run ads in the app. We do not share data with brokers, advertisers, or analytics resellers.</p>
+
+    <h2>Third-party services</h2>
+    <p>Haps uses these providers; each has its own privacy policy:</p>
+    <ul>
+      <li><strong>Supabase</strong> (database, authentication) — <a href="https://supabase.com/privacy">https://supabase.com/privacy</a></li>
+      <li><strong>Google Maps SDK</strong> (map display) — <a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a></li>
+      <li><strong>Google Sign-In</strong> (login option) — same as above</li>
+      <li><strong>Sign in with Apple</strong> (login option) — <a href="https://www.apple.com/legal/privacy/">https://www.apple.com/legal/privacy/</a></li>
+      <li><strong>Gemini API by Google</strong> (categorizes scraped events, server-side only — never sees your data) — <a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a></li>
+    </ul>
+    <p>If you sign in with one of the OAuth options, that provider tells us your name, email, and profile picture. They may also log the sign-in event on their side.</p>
+
+    <h2>Data retention</h2>
+    <ul>
+      <li><strong>Your account data</strong> (email, saves, dismisses, check-ins): kept until you delete your account.</li>
+      <li><strong>Anonymous usage</strong> (events you viewed but didn&rsquo;t save): not retained.</li>
+      <li><strong>Location</strong>: not retained beyond the current session.</li>
+    </ul>
+
+    <h2>Your rights</h2>
+    <p>You can:</p>
+    <ul>
+      <li><strong>See or export your data</strong> — email admin@thehaps.app and we&rsquo;ll send you everything we have on you within 30 days.</li>
+      <li><strong>Delete your account and all associated data</strong> — email the same address.</li>
+      <li><strong>Stop sharing location</strong> — revoke the permission in your phone&rsquo;s Settings; the app will keep working but events won&rsquo;t show distance/sort by distance.</li>
+      <li><strong>Sign out</strong> — use the sign-out option in the app&rsquo;s Settings.</li>
+    </ul>
+    <p>Residents of California (CCPA), the EU/UK (GDPR), or other jurisdictions with data-protection laws have additional rights. Contact us and we will honor them.</p>
+
+    <h2>Children</h2>
+    <p>Haps is not directed at children under 13. We do not knowingly collect data from anyone under 13. If you believe a child has provided data to us, email us and we&rsquo;ll delete it.</p>
+
+    <h2>Security</h2>
+    <p>Data in transit between the app and our backend is encrypted (HTTPS/TLS). Account data at rest in Supabase is encrypted by Supabase&rsquo;s infrastructure. We use OAuth providers for sign-in, so we never see your password.</p>
+    <p>That said, no system is perfect. If a breach affects your data, we&rsquo;ll notify you within 72 hours of becoming aware of it, where required by law.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If we change how we handle data, we&rsquo;ll post the updated policy here and update the date at the top. Material changes (new categories of data, new sharing partners) will prompt an in-app notice.</p>
+
+    <h2>Content removal</h2>
+    <p>Haps aggregates publicly available event listings to help users discover things to do. If you are an event organizer, venue operator, or content owner and would like your events or content removed from Haps, please email <strong>admin@thehaps.app</strong> with the details and we will remove the content promptly, typically within 48 hours.</p>
+
+    <h2>Contact</h2>
+    <p>All inquiries — privacy requests, content removal, data export, account deletion, DMCA notices, or general questions: <strong>admin@thehaps.app</strong></p>
+  </main>
+
+  <footer>
+    <div class="inner">
+      <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
+      <span class="links"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></span>
+    </div>
+  </footer>
+</body>
+</html>

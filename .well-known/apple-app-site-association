@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "J96KB6MDBD.com.rustdev.haps",
+        "paths": ["/event/*"]
+      }
+    ]
+  }
+}

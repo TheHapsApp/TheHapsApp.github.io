@@ -1,0 +1,3 @@
+# Netlify / Cloudflare Pages routing.
+# Keep shared event links pretty (/event/{id}) but serve the smart open page.
+/event/*   /event.html   200

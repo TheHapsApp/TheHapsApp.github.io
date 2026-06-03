@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.rustdev.haps",
+      "sha256_cert_fingerprints": [
+        "DB:E6:6A:70:3D:92:05:F1:17:7B:B8:7A:00:C8:F5:9E:82:F5:B8:ED:56:41:D0:68:B2:C8:70:8D:18:08:24:C1"
+      ]
+    }
+  }
+]

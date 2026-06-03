@@ -1,0 +1,82 @@
+# Privacy Policy for Haps
+
+_Last updated: 2026-06-03_
+
+## Who we are
+
+Haps is an event-discovery app operated by **Haps App** ("we," "us"). You can reach us at **admin@thehaps.app**.
+
+This policy explains what we collect, why, and what you control.
+
+## What we collect
+
+- **Approximate and precise location** — _Why:_ to show you events near you and calculate distance. Used only while the app is open. _Where:_ on your device + cached in our backend during a session if you've signed in.
+- **Email address, display name, profile picture** — _Why:_ to create your account and sync your saves across devices. _Where:_ Supabase (our backend host).
+- **Saved events, dismissed events, check-ins** — _Why:_ to keep your favorites and history in sync. _Where:_ Supabase + your device.
+- **Device identifiers (Supabase session tokens)** — _Why:_ to keep you signed in. _Where:_ on your device only (hardware-encrypted: Android Keystore / iOS Keychain).
+- **An app-generated device ID** (random, not a hardware/advertising ID) — _Why:_ to keep your saves and check-ins working before you sign in. _Where:_ your device + our backend (Supabase).
+- **App diagnostics (crash reports)** — we do not currently collect crash reports.
+
+We do **not** collect:
+
+- Contacts, photos, microphone, or camera input
+- Advertising identifiers (IDFA, GAID)
+- Browsing history outside the app
+- Anything you haven't explicitly given the app permission to access
+
+## How we use it
+
+Strictly to make the app work: showing you events, syncing your saves between your phones, signing you in. We do not sell your data. We do not run ads in the app. We do not share data with brokers, advertisers, or analytics resellers.
+
+## Third-party services
+
+Haps uses these providers; each has its own privacy policy:
+
+- **Supabase** (database, authentication) — https://supabase.com/privacy
+- **Google Maps SDK** (map display) — https://policies.google.com/privacy
+- **Google Sign-In** (login option) — same as above
+- **Sign in with Apple** (login option) — https://www.apple.com/legal/privacy/
+- **Gemini API by Google** (categorizes scraped events, server-side only — never sees your data) — https://policies.google.com/privacy
+
+If you sign in with one of the OAuth options, that provider tells us your name, email, and profile picture. They may also log the sign-in event on their side.
+
+## Data retention
+
+- **Your account data** (email, saves, dismisses, check-ins): kept until you delete your account.
+- **Anonymous usage** (events you viewed but didn't save): not retained.
+- **Location**: not retained beyond the current session.
+
+## Your rights
+
+You can:
+
+- **See or export your data** — email admin@thehaps.app and we'll send you everything we have on you within 30 days.
+- **Delete your account and all associated data** — email the same address.
+- **Stop sharing location** — revoke the permission in your phone's Settings; the app will keep working but events won't show distance/sort by distance.
+- **Sign out** — use the sign-out option in the app's Settings.
+
+Residents of California (CCPA), the EU/UK (GDPR), or other jurisdictions with data-protection laws have additional rights. Contact us and we will honor them.
+
+## Children
+
+Haps is not directed at children under 13. We do not knowingly collect data from anyone under 13. If you believe a child has provided data to us, email us and we'll delete it.
+
+## Security
+
+Data in transit between the app and our backend is encrypted (HTTPS/TLS). Account data at rest in Supabase is encrypted by Supabase's infrastructure. We use OAuth providers for sign-in, so we never see your password.
+
+That said, no system is perfect. If a breach affects your data, we'll notify you within 72 hours of becoming aware of it, where required by law.
+
+## Changes to this policy
+
+If we change how we handle data, we'll post the updated policy here and update the date at the top. Material changes (new categories of data, new sharing partners) will prompt an in-app notice.
+
+## Content removal
+
+Haps aggregates publicly available event listings to help users discover things to do. If you are an event organizer, venue operator, or content owner and would like your events or content removed from Haps, please email **admin@thehaps.app** with the details and we will remove the content promptly, typically within 48 hours.
+
+## Contact
+
+All inquiries — privacy requests, content removal, data export, account deletion, DMCA notices, or general questions:
+
+**admin@thehaps.app**
