@@ -20,7 +20,7 @@
     <p class="updated">Last updated: 2026-06-03</p>
 
     <h2>Who we are</h2>
-    <p>Haps is an event-discovery app operated by <strong>Haps App</strong> (&ldquo;we,&rdquo; &ldquo;us&rdquo;). You can reach us at <strong>admin@thehaps.app</strong>.</p>
+    <p>Haps is an event-discovery app operated by <strong>Daniel Rust</strong> (&ldquo;Haps App,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;). You can reach us at <strong>admin@thehaps.app</strong>.</p>
     <p>This policy explains what we collect, why, and what you control.</p>
 
     <h2>What we collect</h2>
@@ -32,6 +32,7 @@
         <tr><td><strong>Saved events, dismissed events, check-ins</strong></td><td>To keep your favorites and history in sync</td><td>Supabase + your device</td></tr>
         <tr><td><strong>Device identifiers (Supabase session tokens)</strong></td><td>To keep you signed in</td><td>On your device only (hardware-encrypted: Android Keystore / iOS Keychain)</td></tr>
         <tr><td><strong>An app-generated device ID</strong> (random, not a hardware/advertising ID)</td><td>To keep your saves and check-ins working before you sign in</td><td>Your device + our backend (Supabase)</td></tr>
+        <tr><td><strong>Anonymous usage analytics</strong> (app opens, feed loads, swipes saved vs. passed, category interest, searches, screens opened, errors)</td><td>To understand how the app is used so we can improve it. No names, emails, or message content; tied only to your app user ID (anonymous until you sign in) and de-identified if you delete your account. Any location is coarsened on your device to roughly a 1&nbsp;km area — never a precise coordinate. Opt out anytime in Settings &rarr; &ldquo;Share usage data.&rdquo;</td><td>Our own backend (Supabase)</td></tr>
         <tr><td><strong>App diagnostics (crash reports)</strong></td><td>To fix bugs</td><td>We do not currently collect crash reports</td></tr>
       </tbody>
     </table>
@@ -44,7 +45,7 @@
     </ul>
 
     <h2>How we use it</h2>
-    <p>Strictly to make the app work: showing you events, syncing your saves between your phones, signing you in. We do not sell your data. We do not run ads in the app. We do not share data with brokers, advertisers, or analytics resellers.</p>
+    <p>To make the app work — showing you events, syncing your saves between your phones, signing you in — and to understand how it&rsquo;s used so we can improve it (see <strong>Anonymous usage analytics</strong> above). We process usage analytics ourselves on our own backend; we do not sell your data, we do not run ads in the app, and we do not share data with brokers, advertisers, or third-party analytics resellers. You can opt out of usage analytics in <strong>Settings &rarr; &ldquo;Share usage data&rdquo;</strong> at any time without losing any app features.</p>
 
     <h2>Third-party services</h2>
     <p>Haps uses these providers; each has its own privacy policy:</p>
@@ -60,8 +61,8 @@
     <h2>Data retention</h2>
     <ul>
       <li><strong>Your account data</strong> (email, saves, dismisses, check-ins): kept until you delete your account.</li>
-      <li><strong>Anonymous usage</strong> (events you viewed but didn&rsquo;t save): not retained.</li>
-      <li><strong>Location</strong>: not retained beyond the current session.</li>
+      <li><strong>Usage analytics</strong> (app opens, feed loads, swipes, searches, errors): retained to track product trends over time. Tied to your app user ID, which is de-identified (unlinked from you) if you delete your account. Location in analytics is only ever a coarse ~1&nbsp;km area, never a precise coordinate — and nothing is collected if you&rsquo;ve opted out.</li>
+      <li><strong>Location</strong>: precise location is not retained beyond the current session.</li>
     </ul>
 
     <h2>Your rights</h2>
@@ -70,6 +71,7 @@
       <li><strong>See or export your data</strong> — email admin@thehaps.app and we&rsquo;ll send you everything we have on you within 30 days.</li>
       <li><strong>Delete your account and all associated data</strong> — email the same address.</li>
       <li><strong>Stop sharing location</strong> — revoke the permission in your phone&rsquo;s Settings; the app will keep working but events won&rsquo;t show distance/sort by distance.</li>
+      <li><strong>Turn off usage analytics</strong> — Settings &rarr; &ldquo;Share usage data.&rdquo; The app keeps working exactly the same.</li>
       <li><strong>Sign out</strong> — use the sign-out option in the app&rsquo;s Settings.</li>
     </ul>
     <p>Residents of California (CCPA), the EU/UK (GDPR), or other jurisdictions with data-protection laws have additional rights. Contact us and we will honor them.</p>
@@ -93,7 +95,7 @@
 
   <footer>
     <div class="inner">
-      <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
+      <span>© 2026 Daniel Rust · Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
       <span class="links"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></span>
     </div>
   </footer>

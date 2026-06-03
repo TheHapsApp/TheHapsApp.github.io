@@ -4,7 +4,7 @@ _Last updated: 2026-06-03_
 
 ## 1. Who we are
 
-Haps is an event-discovery app operated by **Haps App** ("we," "us," "Haps"). You can reach us at **admin@thehaps.app**. By downloading, accessing, or using Haps, you agree to these Terms. If you don't agree, please don't use the app.
+Haps is an event-discovery app operated by **Daniel Rust** ("Haps App," "we," "us," "Haps"). You can reach us at **admin@thehaps.app**. By downloading, accessing, or using Haps, you agree to these Terms. If you don't agree, please don't use the app.
 
 ## 2. What Haps is
 
