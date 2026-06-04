@@ -16,6 +16,13 @@ Your account and associated data are deleted immediately, and you are signed out
 
 If you can't access the app, email **admin@thehaps.app** from the email address associated with your account, with the subject line **"Delete my account."** We verify ownership of the address and delete the account and its data **within 30 days** (usually much sooner). There is no charge.
 
+## Delete specific data without closing your account
+
+You don't have to delete your whole account to remove data. You can:
+
+- **In the app:** turn off *Settings → Share usage data* to stop usage analytics, and use *Settings → Reset dismissed events* to clear your dismissed history.
+- **By email:** email **admin@thehaps.app** describing the data you'd like removed (for example your saved events, check-ins, or usage analytics). We action these requests **within 30 days**, and your account stays active.
+
 ## What gets deleted
 
 - Your account and profile (email address, display name, and profile picture obtained from Google/Apple sign-in)
