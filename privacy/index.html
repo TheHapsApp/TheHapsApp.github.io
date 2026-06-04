@@ -17,7 +17,7 @@
 
   <main class="legal">
     <h1>Privacy Policy for Haps</h1>
-    <p class="updated">Last updated: 2026-06-03</p>
+    <p class="updated">Last updated: 2026-06-04</p>
 
     <h2>Who we are</h2>
     <p>Haps is an event-discovery app operated by <strong>Daniel Rust</strong> (&ldquo;Haps App,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;). You can reach us at <strong>admin@thehaps.app</strong>.</p>
@@ -30,6 +30,7 @@
         <tr><td><strong>Approximate and precise location</strong></td><td>To show you events near you and calculate distance. Used only while the app is open.</td><td>On your device + cached in our backend during a session if you&rsquo;ve signed in</td></tr>
         <tr><td><strong>Email address, display name, profile picture</strong></td><td>To create your account and sync your saves across devices</td><td>Supabase (our backend host)</td></tr>
         <tr><td><strong>Saved events, dismissed events, check-ins</strong></td><td>To keep your favorites and history in sync</td><td>Supabase + your device</td></tr>
+        <tr><td><strong>Events you submit</strong> (via &ldquo;Submit Event&rdquo;)</td><td>The event details you enter (title, description, time, venue) plus a link to your account, so we can review and publish them</td><td>Supabase</td></tr>
         <tr><td><strong>Device identifiers (Supabase session tokens)</strong></td><td>To keep you signed in</td><td>On your device only (hardware-encrypted: Android Keystore / iOS Keychain)</td></tr>
         <tr><td><strong>An app-generated device ID</strong> (random, not a hardware/advertising ID)</td><td>To keep your saves and check-ins working before you sign in</td><td>Your device + our backend (Supabase)</td></tr>
         <tr><td><strong>Anonymous usage analytics</strong> (app opens, feed loads, swipes saved vs. passed, category interest, searches, screens opened, errors)</td><td>To understand how the app is used so we can improve it. No names, emails, or message content; tied only to your app user ID (anonymous until you sign in) and de-identified if you delete your account. Any location is coarsened on your device to roughly a 1&nbsp;km area — never a precise coordinate. Opt out anytime in Settings &rarr; &ldquo;Share usage data.&rdquo;</td><td>Our own backend (Supabase)</td></tr>
@@ -41,6 +42,7 @@
       <li>Contacts, photos, microphone, or camera input</li>
       <li>Advertising identifiers (IDFA, GAID)</li>
       <li>Browsing history outside the app</li>
+      <li>Your calendar contents — &ldquo;Add to Calendar&rdquo; only <em>writes</em> an event you chose to add; we never read your calendar</li>
       <li>Anything you haven&rsquo;t explicitly given the app permission to access</li>
     </ul>
 
