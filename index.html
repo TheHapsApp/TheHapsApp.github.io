@@ -39,37 +39,55 @@
   <section class="shots" aria-label="A peek inside the app">
     <div class="shots-head">
       <h2>Take a peek inside</h2>
-      <p class="shots-sub">Swipe, filter, map, and save your way to the perfect night out.</p>
+      <p class="shots-sub">Swipe, filter, map, and save your way to the perfect night out. Tap any screen to enlarge.</p>
     </div>
-    <div class="shots-strip">
-      <figure class="shot">
-        <img src="/assets/screenshots/01-discover.jpg" width="600" height="1299" loading="lazy" alt="Swiping through a Date Night event card in the Haps discovery feed">
-        <figcaption>Swipe to discover</figcaption>
-      </figure>
-      <figure class="shot">
-        <img src="/assets/screenshots/02-tonight.jpg" width="600" height="1299" loading="lazy" alt="A trending event showing under the Tonight filter">
-        <figcaption>See what's on tonight</figcaption>
-      </figure>
-      <figure class="shot">
-        <img src="/assets/screenshots/03-detail.jpg" width="600" height="1299" loading="lazy" alt="Event detail page with photos, time, location, and tags">
-        <figcaption>Get the full details</figcaption>
-      </figure>
-      <figure class="shot">
-        <img src="/assets/screenshots/04-filters.jpg" width="600" height="1299" loading="lazy" alt="Filters panel with quick picks, time, price, and category options">
-        <figcaption>Filter to your taste</figcaption>
-      </figure>
-      <figure class="shot">
-        <img src="/assets/screenshots/05-list.jpg" width="600" height="1299" loading="lazy" alt="A scrollable list of nearby events happening tonight">
-        <figcaption>Browse the whole list</figcaption>
-      </figure>
-      <figure class="shot">
-        <img src="/assets/screenshots/06-map.jpg" width="600" height="1299" loading="lazy" alt="Map view with event pins across the Salt Lake City area">
-        <figcaption>Find it on the map</figcaption>
-      </figure>
-      <figure class="shot">
-        <img src="/assets/screenshots/07-saved.jpg" width="600" height="1299" loading="lazy" alt="Saved events list with two favorited festivals">
-        <figcaption>Save your favorites</figcaption>
-      </figure>
+    <div class="carousel">
+      <button type="button" class="car-arrow car-prev" aria-label="Previous screenshots">‹</button>
+      <ul class="shots-strip" id="shotsStrip">
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: Swipe to discover">
+            <img src="/assets/screenshots/01-discover.jpg" width="600" height="1299" loading="lazy" alt="Swiping through a Date Night event card in the Haps discovery feed">
+          </button>
+          <span class="shot-cap">Swipe to discover</span>
+        </li>
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: See what's on tonight">
+            <img src="/assets/screenshots/02-tonight.jpg" width="600" height="1299" loading="lazy" alt="A trending event showing under the Tonight filter">
+          </button>
+          <span class="shot-cap">See what's on tonight</span>
+        </li>
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: Get the full details">
+            <img src="/assets/screenshots/03-detail.jpg" width="600" height="1299" loading="lazy" alt="Event detail page with photos, time, location, and tags">
+          </button>
+          <span class="shot-cap">Get the full details</span>
+        </li>
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: Filter to your taste">
+            <img src="/assets/screenshots/04-filters.jpg" width="600" height="1299" loading="lazy" alt="Filters panel with quick picks, time, price, and category options">
+          </button>
+          <span class="shot-cap">Filter to your taste</span>
+        </li>
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: Browse the whole list">
+            <img src="/assets/screenshots/05-list.jpg" width="600" height="1299" loading="lazy" alt="A scrollable list of nearby events happening tonight">
+          </button>
+          <span class="shot-cap">Browse the whole list</span>
+        </li>
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: Find it on the map">
+            <img src="/assets/screenshots/06-map.jpg" width="600" height="1299" loading="lazy" alt="Map view with event pins across the Salt Lake City area">
+          </button>
+          <span class="shot-cap">Find it on the map</span>
+        </li>
+        <li class="shot">
+          <button type="button" class="shot-open" aria-label="Enlarge: Save your favorites">
+            <img src="/assets/screenshots/07-saved.jpg" width="600" height="1299" loading="lazy" alt="Saved events list with two favorited festivals">
+          </button>
+          <span class="shot-cap">Save your favorites</span>
+        </li>
+      </ul>
+      <button type="button" class="car-arrow car-next" aria-label="More screenshots">›</button>
     </div>
   </section>
 
@@ -109,5 +127,64 @@
       </span>
     </div>
   </footer>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="App screenshot" hidden>
+    <button type="button" class="lb-close" aria-label="Close">&times;</button>
+    <button type="button" class="lb-nav lb-prev" aria-label="Previous screenshot">‹</button>
+    <figure class="lb-figure">
+      <img class="lb-img" id="lbImg" src="" alt="">
+      <figcaption class="lb-cap" id="lbCap"></figcaption>
+    </figure>
+    <button type="button" class="lb-nav lb-next" aria-label="Next screenshot">›</button>
+  </div>
+
+  <script>
+  (function () {
+    var lb = document.getElementById('lightbox');
+    if (!lb) return;
+    var lbImg = document.getElementById('lbImg');
+    var lbCap = document.getElementById('lbCap');
+    var opens = Array.prototype.slice.call(document.querySelectorAll('.shot-open'));
+    var slides = opens.map(function (b) {
+      var img = b.querySelector('img');
+      var cap = b.parentNode.querySelector('.shot-cap');
+      return { src: img.getAttribute('src'), alt: img.getAttribute('alt') || '', cap: cap ? cap.textContent : '' };
+    });
+    var idx = 0, lastFocus = null;
+    function show(i) {
+      idx = (i + slides.length) % slides.length;
+      var s = slides[idx];
+      lbImg.src = s.src; lbImg.alt = s.alt; lbCap.textContent = s.cap;
+    }
+    function open(i) {
+      lastFocus = document.activeElement;
+      show(i);
+      lb.hidden = false;
+      document.body.style.overflow = 'hidden';
+      lb.querySelector('.lb-close').focus();
+    }
+    function close() {
+      lb.hidden = true; lbImg.src = '';
+      document.body.style.overflow = '';
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    opens.forEach(function (b, i) { b.addEventListener('click', function () { open(i); }); });
+    lb.querySelector('.lb-close').addEventListener('click', close);
+    lb.querySelector('.lb-prev').addEventListener('click', function (e) { e.stopPropagation(); show(idx - 1); });
+    lb.querySelector('.lb-next').addEventListener('click', function (e) { e.stopPropagation(); show(idx + 1); });
+    lb.addEventListener('click', function (e) { if (e.target === lb || e.target.classList.contains('lb-figure')) close(); });
+    document.addEventListener('keydown', function (e) {
+      if (lb.hidden) return;
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowLeft') show(idx - 1);
+      else if (e.key === 'ArrowRight') show(idx + 1);
+    });
+    var strip = document.getElementById('shotsStrip');
+    function nudge(dir) { strip.scrollBy({ left: dir * Math.round(strip.clientWidth * 0.8), behavior: 'smooth' }); }
+    var prev = document.querySelector('.car-prev'), next = document.querySelector('.car-next');
+    if (prev) prev.addEventListener('click', function () { nudge(-1); });
+    if (next) next.addEventListener('click', function () { nudge(1); });
+  })();
+  </script>
 </body>
 </html>
