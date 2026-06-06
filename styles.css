@@ -180,13 +180,20 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 @media (max-width: 480px){ .rf-row { flex-direction: column; } }
 
 /* ---- legal pages ---- */
-.legal { padding: 2.5rem 0 1rem; }
+.legal { padding: 2.5rem 1.25rem 1rem; }
 .legal h1 { color: var(--ink); font-size: 2rem; margin-bottom: .2rem; }
 .legal .updated { color: var(--muted); font-style: italic; margin-top: 0; }
 .legal h2 { color: var(--ink); margin-top: 2rem; font-size: 1.25rem; }
 .legal table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
 .legal th, .legal td { border: 1px solid var(--line); padding: .55rem .7rem; text-align: left; vertical-align: top; }
 .legal th { background: var(--bg-soft); }
+.legal table { table-layout: fixed; }
+.legal td, .legal th { overflow-wrap: anywhere; }
+@media (max-width: 560px){
+  .legal { padding: 2rem 1rem 1rem; }
+  .legal table { font-size: .8rem; }
+  .legal th, .legal td { padding: .4rem .45rem; }
+}
 
 /* ---- event link page ---- */
 .event-wrap { max-width: 460px; margin: 0 auto; text-align: center; padding: 4rem 1.25rem; }
