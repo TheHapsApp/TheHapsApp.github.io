@@ -34,6 +34,10 @@ img { max-width: 100%; display: block; }
 .nav .brand img { height: 28px; width: 28px; border-radius: 7px; }
 .nav a.brand:hover { text-decoration: none; }
 .nav .links a { color: var(--body); font-weight: 600; margin-left: 1.25rem; font-size: .95rem; }
+.nav .links a.nav-cta { background: var(--violet); color: #fff; padding: .42rem .85rem; border-radius: 999px; }
+.nav .links a.nav-cta:hover { background: #5b21b6; text-decoration: none; }
+/* On phones, drop the nav pill (hero note + beta section already link there) to keep the bar from overflowing. */
+@media (max-width: 480px){ .nav .links a.nav-cta { display: none; } }
 
 /* ---- hero ---- */
 .hero {
@@ -47,6 +51,7 @@ img { max-width: 100%; display: block; }
 .badges { display: flex; gap: .9rem; justify-content: center; align-items: center; flex-wrap: wrap; }
 .store-badge { height: 48px; width: auto; display: block; filter: drop-shadow(0 4px 14px rgba(0,0,0,.18)); }
 .soon-note { text-align: center; color: #fff; opacity: .9; font-size: .9rem; font-weight: 500; margin: 1.1rem 0 0; }
+.soon-note a { color: #fff; font-weight: 700; text-decoration: underline; }
 
 /* ---- screenshots carousel ---- */
 .shots { background: var(--bg-soft); border-bottom: 1px solid var(--line); padding: 3.25rem 0 3.25rem; }
@@ -114,6 +119,23 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 .card h3 { margin: .6rem 0 .35rem; color: var(--ink); font-size: 1.1rem; }
 .card p { margin: 0; color: var(--muted); font-size: .96rem; }
 .lead { text-align: center; max-width: 48ch; margin: 3rem auto 0; color: var(--muted); }
+
+/* ---- join the beta ---- */
+.beta { background: linear-gradient(160deg, #6d28d9 0%, #9333ea 48%, #c026d3 100%); color: #fff; padding: 3.75rem 1.25rem 4rem; }
+.beta-inner { max-width: var(--maxw); margin: 0 auto; text-align: center; }
+.beta h2 { font-size: clamp(1.7rem, 4.5vw, 2.4rem); margin: 0 0 .5rem; letter-spacing: -.4px; }
+.beta-sub { opacity: .94; max-width: 44ch; margin: 0 auto 2.25rem; }
+.beta-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.1rem; text-align: left; }
+.beta-card { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20); border-radius: var(--radius); padding: 1.5rem 1.4rem; display: flex; flex-direction: column; }
+.beta-card h3 { margin: 0 0 .9rem; font-size: 1.2rem; }
+.beta-steps { margin: 0 0 1.4rem; padding-left: 1.2rem; }
+.beta-steps li { margin: 0 0 .55rem; opacity: .95; font-size: .96rem; line-height: 1.5; }
+.beta-steps a, .beta-soon a { color: #fff; text-decoration: underline; font-weight: 600; }
+.beta-soon { opacity: .95; font-size: .96rem; line-height: 1.55; margin: 0 0 1.4rem; }
+.beta-btn { margin-top: auto; display: inline-block; text-align: center; background: #fff; color: var(--violet); font-weight: 700; padding: .8rem 1rem; border-radius: 12px; }
+.beta-btn:hover { background: #f3eefe; text-decoration: none; }
+.beta-btn-soon { background: rgba(255,255,255,.16); color: #fff; opacity: .8; cursor: default; }
+.beta-btn-soon:hover { background: rgba(255,255,255,.16); }
 
 /* ---- legal pages ---- */
 .legal { padding: 2.5rem 0 1rem; }
