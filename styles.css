@@ -48,10 +48,16 @@ img { max-width: 100%; display: block; }
 .hero img.symbol { height: 96px; width: 96px; margin: 0 auto 1.25rem; border-radius: 22px; filter: drop-shadow(0 8px 24px rgba(0,0,0,.25)); }
 .hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.08; margin: 0 0 .6rem; letter-spacing: -.5px; }
 .hero p.tag { font-size: clamp(1.05rem, 2.6vw, 1.3rem); opacity: .94; max-width: 36ch; margin: 0 auto 1.9rem; }
-.badges { display: flex; gap: .9rem; justify-content: center; align-items: center; flex-wrap: wrap; }
-.store-badge { height: 48px; width: auto; display: block; filter: drop-shadow(0 4px 14px rgba(0,0,0,.18)); }
+.hero-cta { display: flex; justify-content: center; margin-top: 2rem; }
+.btn-hero {
+  display: inline-block; background: #fff; color: var(--violet);
+  font-weight: 800; font-size: 1.1rem; padding: .95rem 2.1rem; border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.25);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.btn-hero:hover { background: #f5f0ff; text-decoration: none; transform: translateY(-2px); box-shadow: 0 16px 38px rgba(0,0,0,.3); }
+.btn-hero:active { transform: translateY(0); }
 .soon-note { text-align: center; color: #fff; opacity: .9; font-size: .9rem; font-weight: 500; margin: 1.1rem 0 0; }
-.soon-note a { color: #fff; font-weight: 700; text-decoration: underline; }
 
 /* ---- screenshots carousel ---- */
 .shots { background: var(--bg-soft); border-bottom: 1px solid var(--line); padding: 3.25rem 0 3.25rem; }
