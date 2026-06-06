@@ -134,12 +134,17 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 .beta-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.1rem; text-align: left; }
 .beta-card { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20); border-radius: var(--radius); padding: 1.5rem 1.4rem; display: flex; flex-direction: column; }
 .beta-card h3 { margin: 0 0 .9rem; font-size: 1.2rem; }
+.beta-tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: rgba(255,255,255,.18); padding: .22rem .55rem; border-radius: 999px; vertical-align: middle; margin-left: .45rem; }
 .beta-steps { margin: 0 0 1.4rem; padding-left: 1.2rem; }
-.beta-steps li { margin: 0 0 .55rem; opacity: .95; font-size: .96rem; line-height: 1.5; }
+.beta-steps li { margin: 0 0 .6rem; opacity: .95; font-size: .96rem; line-height: 1.5; }
 .beta-steps a, .beta-soon a { color: #fff; text-decoration: underline; font-weight: 600; }
 .beta-soon { opacity: .95; font-size: .96rem; line-height: 1.55; margin: 0 0 1.4rem; }
+.beta-btns { margin-top: auto; display: flex; flex-direction: column; gap: .55rem; }
 .beta-btn { margin-top: auto; display: inline-block; text-align: center; background: #fff; color: var(--violet); font-weight: 700; padding: .8rem 1rem; border-radius: 12px; }
 .beta-btn:hover { background: #f3eefe; text-decoration: none; }
+.beta-btns .beta-btn { margin-top: 0; }
+.beta-btn-2 { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.55); }
+.beta-btn-2:hover { background: rgba(255,255,255,.26); }
 .beta-btn-soon { background: rgba(255,255,255,.16); color: #fff; opacity: .8; cursor: default; }
 .beta-btn-soon:hover { background: rgba(255,255,255,.16); }
 
