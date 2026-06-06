@@ -134,7 +134,13 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 .beta-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.1rem; text-align: left; }
 .beta-card { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20); border-radius: var(--radius); padding: 1.5rem 1.4rem; display: flex; flex-direction: column; }
 .beta-card h3 { margin: 0 0 .9rem; font-size: 1.2rem; }
-.beta-tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: rgba(255,255,255,.18); padding: .22rem .55rem; border-radius: 999px; vertical-align: middle; margin-left: .45rem; }
+.beta-os { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.os-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; background: #fff; flex: 0 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.os-icon svg { width: 21px; height: 21px; display: block; }
+.os-icon-android svg { fill: #3ddc84; }
+.os-icon-ios svg { fill: #000; }
+.os-name { font-weight: 700; }
+.beta-tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: rgba(255,255,255,.18); padding: .22rem .55rem; border-radius: 999px; }
 .beta-steps { margin: 0 0 1.4rem; padding-left: 1.2rem; }
 .beta-steps li { margin: 0 0 .6rem; opacity: .95; font-size: .96rem; line-height: 1.5; }
 .beta-steps a, .beta-soon a { color: #fff; text-decoration: underline; font-weight: 600; }
