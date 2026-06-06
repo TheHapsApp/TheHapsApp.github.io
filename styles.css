@@ -154,6 +154,31 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 .beta-btn-soon { background: rgba(255,255,255,.16); color: #fff; opacity: .8; cursor: default; }
 .beta-btn-soon:hover { background: rgba(255,255,255,.16); }
 
+/* ---- request a city ---- */
+.request { background: var(--bg-soft); border-top: 1px solid var(--line); padding: 3.5rem 1.25rem 3.75rem; }
+.request-inner { max-width: 600px; margin: 0 auto; text-align: center; }
+.request h2 { color: var(--ink); font-size: clamp(1.5rem, 4vw, 2rem); margin: 0 0 .5rem; letter-spacing: -.3px; }
+.request-sub { color: var(--muted); margin: 0 auto 1.8rem; max-width: 52ch; }
+.request-form { display: flex; flex-direction: column; gap: .7rem; text-align: left; }
+.rf-row { display: flex; gap: .7rem; }
+.rf-input {
+  width: 100%; font: inherit; font-size: 1rem; color: var(--ink);
+  padding: .8rem .95rem; border: 1px solid var(--line); border-radius: 12px; background: #fff;
+}
+.rf-input::placeholder { color: #9b95ad; }
+.rf-input:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 3px rgba(109,40,217,.15); }
+.rf-btn {
+  font: inherit; font-weight: 700; font-size: 1rem; color: #fff; cursor: pointer;
+  background: var(--violet); border: 0; border-radius: 12px; padding: .85rem 1rem; margin-top: .15rem;
+  transition: background .12s ease;
+}
+.rf-btn:hover { background: #5b21b6; }
+.rf-btn:disabled { opacity: .7; cursor: default; }
+.rf-msg { margin: .3rem 0 0; font-size: .95rem; font-weight: 600; min-height: 1.2em; text-align: center; }
+.rf-ok { color: #15803d; }
+.rf-err { color: #b91c1c; }
+@media (max-width: 480px){ .rf-row { flex-direction: column; } }
+
 /* ---- legal pages ---- */
 .legal { padding: 2.5rem 0 1rem; }
 .legal h1 { color: var(--ink); font-size: 2rem; margin-bottom: .2rem; }

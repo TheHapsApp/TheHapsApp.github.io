@@ -14,7 +14,7 @@
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/styles.css?v=4">
+<link rel="stylesheet" href="/styles.css?v=5">
 </head>
 <body>
   <nav class="nav">
@@ -150,6 +150,22 @@
     </div>
   </section>
 
+  <section class="request" id="request" aria-label="Request your city">
+    <div class="request-inner">
+      <h2>Not in your city yet?</h2>
+      <p class="request-sub">Haps is live in the Salt Lake City and Sacramento areas, with more on the way. Tell us where to go next — we prioritize new cities by demand.</p>
+      <form class="request-form" id="requestForm" novalidate>
+        <div class="rf-row">
+          <input class="rf-input" id="rfCity" type="text" placeholder="City or area *" maxlength="120" required autocomplete="address-level2">
+          <input class="rf-input" id="rfRegion" type="text" placeholder="State / region (optional)" maxlength="120" autocomplete="address-level1">
+        </div>
+        <input class="rf-input" id="rfEmail" type="email" placeholder="Email (optional) — we'll tell you when we launch there" maxlength="254" autocomplete="email">
+        <button class="rf-btn" type="submit" id="rfSubmit">Request my city</button>
+        <p class="rf-msg" id="rfMsg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
   <footer>
     <div class="inner">
       <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
@@ -216,6 +232,54 @@
     var prev = document.querySelector('.car-prev'), next = document.querySelector('.car-next');
     if (prev) prev.addEventListener('click', function () { nudge(-1); });
     if (next) next.addEventListener('click', function () { nudge(1); });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    var SUPABASE_URL = "https://cvcnugkqdgmcntsuplaj.supabase.co";
+    var SUPABASE_KEY = "sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz";
+    var form = document.getElementById('requestForm');
+    if (!form) return;
+    var msg = document.getElementById('rfMsg');
+    var btn = document.getElementById('rfSubmit');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var city = document.getElementById('rfCity').value.trim();
+      msg.className = 'rf-msg'; msg.textContent = '';
+      if (!city) { msg.className = 'rf-msg rf-err'; msg.textContent = 'Please enter a city or area.'; return; }
+      var payload = {
+        city: city,
+        region: document.getElementById('rfRegion').value.trim() || null,
+        email: document.getElementById('rfEmail').value.trim() || null,
+        source: 'web'
+      };
+      btn.disabled = true; btn.textContent = 'Sending…';
+      fetch(SUPABASE_URL + '/rest/v1/location_requests', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(payload)
+      }).then(function (r) {
+        if (r.ok) {
+          form.reset();
+          msg.className = 'rf-msg rf-ok';
+          msg.textContent = "Thanks! We've added " + city + " to the list. 🎉";
+        } else {
+          msg.className = 'rf-msg rf-err';
+          msg.textContent = "Hmm, that didn't go through. Please try again.";
+        }
+        btn.disabled = false; btn.textContent = 'Request my city';
+      }).catch(function () {
+        msg.className = 'rf-msg rf-err';
+        msg.textContent = "Network error — please try again.";
+        btn.disabled = false; btn.textContent = 'Request my city';
+      });
+    });
   })();
   </script>
 </body>
