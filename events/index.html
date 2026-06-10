@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Browse events — Haps</title>
+<meta name="description" content="See what's happening near you — concerts, food, festivals, family fun and more. Browse, filter, and save local events with Haps.">
+<link rel="canonical" href="https://thehaps.app/events/">
+<link rel="icon" href="/assets/icon-512.png">
+<link rel="apple-touch-icon" href="/assets/icon-512.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Browse events near you — Haps">
+<meta property="og:description" content="Concerts, food, festivals, family fun and more. Browse, filter, and save local events.">
+<meta property="og:url" content="https://thehaps.app/events/">
+<meta property="og:image" content="https://thehaps.app/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="/events/events.css?v=1">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
+      <div class="searchbox">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="searchInput" type="search" placeholder="Search events, venues…" autocomplete="off" aria-label="Search events">
+        <button id="searchClear" class="search-clear" aria-label="Clear search" hidden>&times;</button>
+      </div>
+      <button id="savedBtn" class="saved-btn" aria-pressed="false" title="Your saved events">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.8-10-9.3C.4 8.6 2.4 5 6 5c2.2 0 3.6 1.2 6 3.6C14.4 6.2 15.8 5 18 5c3.6 0 5.6 3.6 4 6.7C19.5 16.2 12 21 12 21z"/></svg>
+        <span id="savedCount" class="saved-count" hidden>0</span>
+      </button>
+      <a class="getapp-btn" href="/beta">Get the app</a>
+    </div>
+  </header>
+
+  <section class="heroband" id="heroband">
+    <h1>What's happening <span id="heroCity">near you</span></h1>
+    <p>Fresh local events, updated every day. Save the ones you love — and take them with you in the app.</p>
+  </section>
+
+  <div class="filterbar" id="filterbar">
+    <div class="filter-row">
+      <button class="chip chip-loc" id="locChip" aria-haspopup="dialog">
+        <span aria-hidden="true">📍</span> <span id="locLabel">Salt Lake City · 25 mi</span>
+      </button>
+      <span class="chip-divider" aria-hidden="true"></span>
+      <div class="chip-scroll" id="timeChips" role="group" aria-label="When">
+        <button class="chip is-on" data-when="all">Anytime</button>
+        <button class="chip" data-when="today">Today</button>
+        <button class="chip" data-when="tomorrow">Tomorrow</button>
+        <button class="chip" data-when="weekend">This weekend</button>
+        <button class="chip" data-when="week">Next 7 days</button>
+        <button class="chip chip-free" id="freeChip" aria-pressed="false">Free</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="chip-scroll" id="catChips" role="group" aria-label="Categories"></div>
+    </div>
+  </div>
+
+  <main class="content">
+    <div class="toolbar">
+      <p class="result-meta" id="resultMeta">Loading events…</p>
+      <div class="toolbar-right">
+        <label class="sort-wrap">Sort
+          <select id="sortSel" aria-label="Sort events">
+            <option value="soonest">Soonest</option>
+            <option value="trending">Trending</option>
+          </select>
+        </label>
+        <div class="view-toggle" role="group" aria-label="View">
+          <button id="viewGrid" class="is-on" aria-pressed="true">Grid</button>
+          <button id="viewMap" aria-pressed="false">Map</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="saved-note" id="savedNote" hidden>
+      <strong>Your saves live in this browser.</strong> Get the Haps app to sync them to your phone and get reminders. <a href="/beta">Join the beta →</a>
+    </div>
+
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <div id="mapWrap" class="map-wrap" hidden><div id="map"></div></div>
+
+    <div class="state-box" id="stateBox" hidden></div>
+    <div class="load-more" id="loadMoreWrap" hidden>
+      <button id="loadMoreBtn" class="load-more-btn">Show more events</button>
+    </div>
+    <div id="sentinel" aria-hidden="true"></div>
+  </main>
+
+  <div class="app-banner" id="appBanner" hidden>
+    <span>💜 <strong>Haps is better in the app</strong> — swipe events, sync saves, get reminders.</span>
+    <a href="/beta">Join the beta</a>
+    <button id="bannerClose" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <dialog class="loc-dialog" id="locDialog" aria-label="Choose your location">
+    <div class="loc-head">
+      <h2>Where are you looking?</h2>
+      <button class="dlg-close" data-close="locDialog" aria-label="Close">&times;</button>
+    </div>
+    <button class="loc-geo" id="useGeo">🧭 Use my location</button>
+    <div class="loc-cities" id="cityList"></div>
+    <h3>Search radius</h3>
+    <div class="loc-radius" id="radiusChips"></div>
+    <p class="loc-note">Not in one of these areas yet? <a href="/#request">Request your city →</a></p>
+  </dialog>
+
+  <dialog class="detail-dialog" id="detailDialog" aria-label="Event details">
+    <div id="detailBody"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <footer class="footer">
+    <div class="inner">
+      <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
+      <span class="links">
+        <a href="/">About</a>
+        <a href="/beta">Join the beta</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </span>
+    </div>
+  </footer>
+
+  <noscript>
+    <div style="max-width:560px;margin:3rem auto;padding:0 1.25rem;text-align:center;font-family:sans-serif">
+      <p>Browsing events on the web needs JavaScript enabled.</p>
+      <p><a href="/beta">Or grab the Haps app →</a></p>
+    </div>
+  </noscript>
+
+  <script src="/events/app.js?v=1"></script>
+</body>
+</html>
