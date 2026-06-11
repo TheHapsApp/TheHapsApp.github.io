@@ -12,7 +12,8 @@
   var SB = 'https://cvcnugkqdgmcntsuplaj.supabase.co/rest/v1';
   var KEY = 'sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz';
   var PAGE = 400;          // rows per REST page
-  var FILL_TARGET = 36;    // net-new visible cards to aim for per load action
+  var SHOW_STEP = 20;      // cards revealed per page action (initial view + each "more")
+  var FILL_TARGET = 24;    // net-new pool cards to aim for per fetch action
   var MAX_FILL_FETCHES = 5;
   var SEARCH_LIMIT = 300;
   var GRACE_MS = 4 * 3600e3; // feed floor: now - 4h, same as the app
@@ -75,6 +76,7 @@
     savedView: false,
     rows: [],            // raw rows, deduped by id, ascending start
     rowIds: {},
+    shown: 20,           // display cap: cards revealed so far (grows by SHOW_STEP)
     cursor: undefined,   // undefined = not loaded; null = exhausted; string = next start_time
     loading: false,
     error: false
@@ -166,7 +168,16 @@
   function chipWindow(when) {
     var now = new Date(), today = startOfDay(now), dow = now.getDay();
     switch (when) {
+      case 'now':
+        // ongoing (within the feed's started-up-to-4h-ago grace) or about to
+        // start; passesFilters already drops anything that has ended
+        return { start: null, end: new Date(now.getTime() + 2 * 3600e3) };
       case 'today': return { start: null, end: addDays(today, 1) };
+      case 'tonight': {
+        var eve = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17);
+        var lateNight = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 3);
+        return { start: eve, end: lateNight };
+      }
       case 'tomorrow': return { start: addDays(today, 1), end: addDays(today, 2) };
       case 'weekend': {
         if (dow === 6) return { start: null, end: addDays(today, 2) };          // Sat → through Sun
@@ -431,7 +442,8 @@
     var gs = visibleGroups();
     renderedGroups = gs;
     var html = '';
-    gs.forEach(function (g, i) {
+    // The grid pages SHOW_STEP cards at a time; the map always gets everything.
+    gs.slice(0, state.shown).forEach(function (g, i) {
       // App-promo card: once early, then sparingly — every two dozen cards
       // keeps it visible without feeling like ad inventory.
       if (i === 9 || (i > 9 && (i - 9) % 24 === 0)) html += promoHtml();
@@ -472,7 +484,9 @@
           '<p>Try a wider radius, a different day, or fewer filters.</p>';
       return;
     }
-    if (!state.savedView && !state.q && state.cursor && !state.loading) els.loadMoreWrap.hidden = false;
+    var canReveal = visibleCount > state.shown;                         // loaded but not yet shown
+    var canFetch = !state.savedView && !state.q && !!state.cursor;      // more pages on the server
+    if (!state.loading && state.view === 'grid' && (canReveal || canFetch)) els.loadMoreWrap.hidden = false;
   }
 
   // ---------- data loading ----------
@@ -549,23 +563,23 @@
         state.loading = false; state.error = true; renderGrid();
       });
   }
-  // Any filter/chip change brings the user back to the top of the list — the
-  // reshuffled results should be seen from their start. Scrolls only upward,
-  // to just under the sticky bars; no-op when already at or above that point
-  // (initial load, panels used from the top of the page).
-  function scrollToResultsTop() {
-    var topbar = document.querySelector('.topbar');
-    var stickyH = (topbar ? topbar.offsetHeight : 0) + (els.filterbar.offsetHeight || 0);
-    var target = els.resultMeta.getBoundingClientRect().top + window.scrollY - stickyH - 8;
-    if (target < 0) target = 0;
-    if (window.scrollY > target) window.scrollTo(0, target);
+  // Any filter/chip change brings the user back to the very top of the page.
+  // Jump instantly: the CSS smooth-scroll glide gets cancelled when the grid
+  // is replaced mid-animation, which stranded the page partway up.
+  function scrollToTop() {
+    var de = document.documentElement;
+    var prev = de.style.scrollBehavior;
+    de.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+    de.style.scrollBehavior = prev;
   }
   function resetAndLoad() {
     state.rows = []; state.rowIds = {}; state.cursor = undefined;
+    state.shown = SHOW_STEP;
     els.grid.innerHTML = skeletonHtml();
     els.stateBox.hidden = true; els.loadMoreWrap.hidden = true;
     els.resultMeta.textContent = 'Loading events…';
-    scrollToResultsTop();
+    scrollToTop();
     syncHash();
     if (state.savedView) loadSaved();
     else if (state.q) loadSearch();
@@ -874,7 +888,7 @@
       }
     }
     if (h.r && RADII.indexOf(+h.r) >= 0) state.radius = +h.r;
-    if (h.when && ['today', 'tomorrow', 'weekend', 'week'].indexOf(h.when) >= 0) state.when = h.when;
+    if (h.when && ['now', 'today', 'tonight', 'tomorrow', 'weekend', 'week'].indexOf(h.when) >= 0) state.when = h.when;
     else if (h.when === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(h.date || '')) { state.when = 'date'; state.date = h.date; }
     if (h.cat) h.cat.split(',').forEach(function (s) { if (CAT_BY_SLUG[s]) state.cats[s] = true; });
     if (h.free === '1') state.freeOnly = true;
@@ -927,7 +941,7 @@
       els[PANELS[k][1]].hidden = !on;
     });
   }
-  var WHEN_LABELS = { all: 'Anytime', today: 'Today', tomorrow: 'Tomorrow', weekend: 'This weekend', week: 'Next 7 days' };
+  var WHEN_LABELS = { all: 'Anytime', now: 'Now', today: 'Today', tonight: 'Tonight', tomorrow: 'Tomorrow', weekend: 'This weekend', week: 'Next 7 days' };
   function updatePills() {
     els.timeLabel.textContent = state.when === 'date' && state.date
       ? fmtDayShort.format(parseLocalDate(state.date))
@@ -1099,8 +1113,9 @@
     b.classList.toggle('is-on', !!state.cats[slug]);
     updatePills();
     // category filtering is client-side (matches the app); no refetch needed
+    state.shown = SHOW_STEP;
     syncHash(); renderGrid();
-    scrollToResultsTop();
+    scrollToTop();
     maybeAutoFill();
   });
   function maybeAutoFill() {
@@ -1110,13 +1125,14 @@
   }
   els.sortSel.addEventListener('change', function () {
     state.sort = els.sortSel.value;
+    state.shown = SHOW_STEP;
     syncHash(); renderGrid();
-    scrollToResultsTop();
+    scrollToTop();
   });
   els.viewGrid.addEventListener('click', function () { setView('grid'); });
   els.viewMap.addEventListener('click', function () { setView('map'); });
   els.savedBtn.addEventListener('click', function () { setSavedView(!state.savedView); });
-  els.loadMoreBtn.addEventListener('click', function () { if (state.cursor) loadFeedPage(3); });
+  els.loadMoreBtn.addEventListener('click', showMore);
 
   // search
   var searchTimer = null;
@@ -1186,11 +1202,29 @@
   els.imgDialog.addEventListener('click', function () { els.imgDialog.close(); });
   els.imgDialog.addEventListener('close', function () { els.imgFull.src = ''; });
 
-  // infinite scroll
+  // infinite scroll — reveal SHOW_STEP more from the loaded pool first; only
+  // hit the network when the pool itself runs out (or to keep it topped up).
+  function showMore() {
+    if (state.shown < renderedGroups.length) {
+      state.shown += SHOW_STEP;
+      renderGrid();
+      // keep the pool a step ahead so the next reveal doesn't wait on the network
+      if (renderedGroups.length - state.shown < SHOW_STEP) poolFetch();
+      // the observer only fires on intersection CHANGES — if the new cards
+      // didn't push the sentinel past the margin, chain another check
+      setTimeout(maybeLoadMoreOnScroll, 0);
+    } else {
+      poolFetch();
+    }
+  }
+  function poolFetch() {
+    if (!state.savedView && !state.q && state.cursor && !state.loading) loadFeedPage(3);
+  }
   var sentinelInView = false;
   function maybeLoadMoreOnScroll() {
-    if (sentinelInView && !state.loading && state.cursor && !state.q && !state.savedView && state.view === 'grid') {
-      loadFeedPage(3);
+    if (sentinelInView && !state.loading && state.view === 'grid' &&
+        (state.shown < renderedGroups.length || (state.cursor && !state.q && !state.savedView))) {
+      showMore();
     }
   }
   if ('IntersectionObserver' in window) {
