@@ -66,6 +66,7 @@
     lat: 40.7608, lng: -111.8910,
     radius: 25,
     when: 'all',
+    date: null,          // 'YYYY-MM-DD' when when === 'date'
     cats: {},            // slug -> true
     freeOnly: false,
     sort: 'soonest',
@@ -84,7 +85,8 @@
    'timeChips', 'freeChip', 'catChips', 'resultMeta', 'sortSel', 'viewGrid', 'viewMap',
    'savedNote', 'grid', 'mapWrap', 'stateBox', 'loadMoreWrap', 'loadMoreBtn', 'sentinel',
    'appBanner', 'bannerClose', 'locDialog', 'useGeo', 'cityList', 'radiusChips',
-   'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar']
+   'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar',
+   'dateChip', 'calDialog', 'calTitle', 'calPrev', 'calNext', 'calDow', 'calGrid', 'calClear']
     .forEach(function (id) { els[id] = document.getElementById(id); });
 
   // ---------- tiny utils ----------
@@ -107,6 +109,7 @@
   }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
   function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function parseLocalDate(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   var fmtTime = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
   var fmtDayShort = new Intl.DateTimeFormat([], { weekday: 'short', month: 'short', day: 'numeric' });
   var fmtDayLong = new Intl.DateTimeFormat([], { weekday: 'long', month: 'long', day: 'numeric' });
@@ -169,6 +172,11 @@
         return { start: fri, end: addDays(fri, 3) };
       }
       case 'week': return { start: null, end: addDays(today, 7) };
+      case 'date': {
+        if (!state.date) return { start: null, end: null };
+        var d = parseLocalDate(state.date);
+        return { start: d, end: addDays(d, 1) };
+      }
       default: return { start: null, end: null };
     }
   }
@@ -434,7 +442,9 @@
     var txt;
     if (state.savedView) txt = '<strong>' + n + '</strong> saved event' + (n === 1 ? '' : 's');
     else if (state.q) txt = '<strong>' + n + '</strong> result' + (n === 1 ? '' : 's') + ' for “' + esc(state.q) + '” ' + where;
-    else txt = '<strong>' + n + (state.cursor ? '+' : '') + '</strong> things to do ' + where + ' · within ' + state.radius + ' mi';
+    else txt = '<strong>' + n + (state.cursor ? '+' : '') + '</strong> things to do ' + where +
+      (state.when === 'date' && state.date ? ' · ' + esc(fmtDayShort.format(parseLocalDate(state.date))) : '') +
+      ' · within ' + state.radius + ' mi';
     els.resultMeta.innerHTML = txt;
   }
   function renderStates(visibleCount) {
@@ -810,6 +820,7 @@
     else if (state.citySlug !== 'slc') h.city = state.citySlug;
     if (state.radius !== 25) h.r = String(state.radius);
     if (state.when !== 'all') h.when = state.when;
+    if (state.when === 'date' && state.date) h.date = state.date;
     var cats = Object.keys(state.cats);
     if (cats.length) h.cat = cats.join(',');
     if (state.freeOnly) h.free = '1';
@@ -836,6 +847,7 @@
     }
     if (h.r && RADII.indexOf(+h.r) >= 0) state.radius = +h.r;
     if (h.when && ['today', 'tomorrow', 'weekend', 'week'].indexOf(h.when) >= 0) state.when = h.when;
+    else if (h.when === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(h.date || '')) { state.when = 'date'; state.date = h.date; }
     if (h.cat) h.cat.split(',').forEach(function (s) { if (CAT_BY_SLUG[s]) state.cats[s] = true; });
     if (h.free === '1') state.freeOnly = true;
     if (h.sort === 'trending') state.sort = 'trending';
@@ -878,7 +890,7 @@
     var pop = document.getElementById('calPop');
     if (pop && !pop.hidden && !e.target.closest('.cal-menu')) pop.hidden = true;
   });
-  [els.locDialog, els.detailDialog].forEach(function (d) {
+  [els.locDialog, els.detailDialog, els.calDialog].forEach(function (d) {
     d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
   });
 
@@ -916,9 +928,79 @@
     var b = e.target.closest('[data-when]');
     if (!b) return;
     state.when = b.getAttribute('data-when');
+    state.date = null;
     els.timeChips.querySelectorAll('[data-when]').forEach(function (x) {
       x.classList.toggle('is-on', x === b);
     });
+    setDateChipUi();
+    resetAndLoad();
+  });
+
+  // ---------- calendar date picker ----------
+  function setDateChipUi() {
+    if (state.when === 'date' && state.date) {
+      els.dateChip.classList.add('is-on');
+      els.dateChip.textContent = '📅 ' + fmtDayShort.format(parseLocalDate(state.date));
+    } else {
+      els.dateChip.classList.remove('is-on');
+      els.dateChip.textContent = '📅 Pick a date';
+    }
+  }
+  var calY, calM;
+  function renderCalendar() {
+    var today = startOfDay(new Date());
+    var first = new Date(calY, calM, 1);
+    els.calTitle.textContent = new Intl.DateTimeFormat([], { month: 'long', year: 'numeric' }).format(first);
+    els.calPrev.disabled = calY === today.getFullYear() && calM === today.getMonth();
+    if (!els.calDow.childNodes.length) {
+      els.calDow.innerHTML = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+        .map(function (d) { return '<span>' + d + '</span>'; }).join('');
+    }
+    var html = '';
+    for (var b = 0; b < first.getDay(); b++) html += '<span class="cal-blank"></span>';
+    var daysInMonth = new Date(calY, calM + 1, 0).getDate();
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dt = new Date(calY, calM, d);
+      var iso = calY + '-' + String(calM + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      var cls = 'cal-day';
+      if (dt.getTime() === today.getTime()) cls += ' is-today';
+      if (state.when === 'date' && state.date === iso) cls += ' is-sel';
+      html += '<button class="' + cls + '" data-date="' + iso + '"' + (dt < today ? ' disabled' : '') + '>' + d + '</button>';
+    }
+    els.calGrid.innerHTML = html;
+  }
+  els.dateChip.addEventListener('click', function () {
+    var base = state.when === 'date' && state.date ? parseLocalDate(state.date) : new Date();
+    calY = base.getFullYear(); calM = base.getMonth();
+    renderCalendar();
+    els.calDialog.showModal();
+  });
+  els.calPrev.addEventListener('click', function () {
+    calM--; if (calM < 0) { calM = 11; calY--; }
+    renderCalendar();
+  });
+  els.calNext.addEventListener('click', function () {
+    calM++; if (calM > 11) { calM = 0; calY++; }
+    renderCalendar();
+  });
+  els.calGrid.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-date]');
+    if (!b || b.disabled) return;
+    state.when = 'date';
+    state.date = b.getAttribute('data-date');
+    els.timeChips.querySelectorAll('[data-when]').forEach(function (x) { x.classList.remove('is-on'); });
+    setDateChipUi();
+    els.calDialog.close();
+    resetAndLoad();
+  });
+  els.calClear.addEventListener('click', function () {
+    state.when = 'all';
+    state.date = null;
+    els.timeChips.querySelectorAll('[data-when]').forEach(function (x) {
+      x.classList.toggle('is-on', x.getAttribute('data-when') === 'all');
+    });
+    setDateChipUi();
+    els.calDialog.close();
     resetAndLoad();
   });
   els.freeChip.addEventListener('click', function () {
@@ -1035,8 +1117,10 @@
     try { sessionStorage.setItem('hapsBannerHid', '1'); } catch (e) { /* ok */ }
   });
 
-  // desktop: let the mouse wheel scroll the chip rows horizontally (the
-  // scrollbar is hidden, so without this they look stuck)
+  // Desktop chip-row scrolling: the scrollbar is hidden and mice can't
+  // touch-pan, so give every overflowing row ‹ › arrows, wheel support,
+  // and click-drag panning. Arrows hide themselves on touch devices (CSS)
+  // and when the row fits.
   document.querySelectorAll('.chip-scroll').forEach(function (row) {
     row.addEventListener('wheel', function (e) {
       if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal scroll
@@ -1044,6 +1128,62 @@
       e.preventDefault();
       row.scrollLeft += e.deltaY;
     }, { passive: false });
+
+    function mkArrow(glyph, label) {
+      var b = document.createElement('button');
+      b.className = 'chip-arrow';
+      b.type = 'button';
+      b.textContent = glyph;
+      b.setAttribute('aria-label', label);
+      b.hidden = true;
+      return b;
+    }
+    var prev = mkArrow('‹', 'Scroll left');
+    var next = mkArrow('›', 'Scroll right');
+    row.parentNode.insertBefore(prev, row);
+    row.parentNode.insertBefore(next, row.nextSibling);
+    function updateArrows() {
+      var over = row.scrollWidth > row.clientWidth + 4;
+      prev.hidden = !over;
+      next.hidden = !over;
+      if (over) {
+        prev.disabled = row.scrollLeft <= 2;
+        next.disabled = row.scrollLeft >= row.scrollWidth - row.clientWidth - 2;
+      }
+    }
+    prev.addEventListener('click', function () {
+      row.scrollBy({ left: -Math.round(row.clientWidth * 0.75), behavior: 'smooth' });
+    });
+    next.addEventListener('click', function () {
+      row.scrollBy({ left: Math.round(row.clientWidth * 0.75), behavior: 'smooth' });
+    });
+    row.addEventListener('scroll', updateArrows, { passive: true });
+    window.addEventListener('resize', updateArrows);
+    setTimeout(updateArrows, 0);
+    setTimeout(updateArrows, 500); // after chips/fonts settle
+
+    // click-drag panning with a mouse; suppress the trailing click when the
+    // user actually dragged so chips don't toggle accidentally
+    var dragging = false, dragMoved = false, dragX = 0, dragLeft = 0;
+    row.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      dragging = true; dragMoved = false;
+      dragX = e.clientX; dragLeft = row.scrollLeft;
+    });
+    window.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      var dx = e.clientX - dragX;
+      if (Math.abs(dx) > 4) { dragMoved = true; row.classList.add('dragging'); }
+      row.scrollLeft = dragLeft - dx;
+    });
+    window.addEventListener('pointerup', function () {
+      if (!dragging) return;
+      dragging = false;
+      row.classList.remove('dragging');
+    });
+    row.addEventListener('click', function (e) {
+      if (dragMoved) { e.preventDefault(); e.stopPropagation(); dragMoved = false; }
+    }, true);
   });
 
   // keep the filter bar pinned right below the real topbar height
@@ -1064,6 +1204,7 @@
   els.timeChips.querySelectorAll('[data-when]').forEach(function (x) {
     x.classList.toggle('is-on', x.getAttribute('data-when') === state.when);
   });
+  setDateChipUi();
   if (state.q) { els.searchInput.value = state.q; els.searchClear.hidden = false; }
   refreshSaveUi();
   if (state.savedView) {
