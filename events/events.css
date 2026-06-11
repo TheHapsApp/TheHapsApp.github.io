@@ -108,8 +108,10 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
   -webkit-overflow-scrolling: touch; padding: 2px;
   /* Constrain the flex item so overflow happens INSIDE this scroller —
      with the default min-width:auto it widens past the row and the chips
-     just clip with no way to scroll. */
-  flex: 1 1 auto; min-width: 0; max-width: 100%;
+     just clip with no way to scroll. flex-basis 0 (not auto) keeps the
+     scroller's huge content width out of the row's flex math, so siblings
+     (location chip, filters toggle) never get squeezed by it. */
+  flex: 1 1 0; min-width: 0; max-width: 100%;
 }
 .chip-scroll::-webkit-scrollbar { display: none; }
 .chip {
@@ -121,7 +123,12 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
 .chip:hover { border-color: #cfc4e8; }
 .chip:active { transform: scale(.97); }
 .chip.is-on { background: var(--ink); border-color: var(--ink); color: #fff; }
-.chip-loc { background: #fff; border-color: #d6c9f2; color: var(--violet); font-weight: 700; }
+.chip-loc {
+  background: #fff; border-color: #d6c9f2; color: var(--violet); font-weight: 700;
+  /* the one chip allowed to shrink: on narrow screens it ellipsizes instead of
+     forcing the row (and the whole page) wider than the viewport */
+  flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
 .chip-loc:hover { background: #f6f1ff; }
 .chip-free.is-on { background: #15803d; border-color: #15803d; }
 .chip-divider { flex: 0 0 1px; align-self: stretch; background: var(--line); margin: 0 .15rem; }
