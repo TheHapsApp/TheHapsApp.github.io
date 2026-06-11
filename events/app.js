@@ -549,11 +549,23 @@
         state.loading = false; state.error = true; renderGrid();
       });
   }
+  // Any filter/chip change brings the user back to the top of the list — the
+  // reshuffled results should be seen from their start. Scrolls only upward,
+  // to just under the sticky bars; no-op when already at or above that point
+  // (initial load, panels used from the top of the page).
+  function scrollToResultsTop() {
+    var topbar = document.querySelector('.topbar');
+    var stickyH = (topbar ? topbar.offsetHeight : 0) + (els.filterbar.offsetHeight || 0);
+    var target = els.resultMeta.getBoundingClientRect().top + window.scrollY - stickyH - 8;
+    if (target < 0) target = 0;
+    if (window.scrollY > target) window.scrollTo(0, target);
+  }
   function resetAndLoad() {
     state.rows = []; state.rowIds = {}; state.cursor = undefined;
     els.grid.innerHTML = skeletonHtml();
     els.stateBox.hidden = true; els.loadMoreWrap.hidden = true;
     els.resultMeta.textContent = 'Loading events…';
+    scrollToResultsTop();
     syncHash();
     if (state.savedView) loadSaved();
     else if (state.q) loadSearch();
@@ -1088,6 +1100,7 @@
     updatePills();
     // category filtering is client-side (matches the app); no refetch needed
     syncHash(); renderGrid();
+    scrollToResultsTop();
     maybeAutoFill();
   });
   function maybeAutoFill() {
@@ -1098,6 +1111,7 @@
   els.sortSel.addEventListener('change', function () {
     state.sort = els.sortSel.value;
     syncHash(); renderGrid();
+    scrollToResultsTop();
   });
   els.viewGrid.addEventListener('click', function () { setView('grid'); });
   els.viewMap.addEventListener('click', function () { setView('map'); });
