@@ -1035,6 +1035,17 @@
     try { sessionStorage.setItem('hapsBannerHid', '1'); } catch (e) { /* ok */ }
   });
 
+  // desktop: let the mouse wheel scroll the chip rows horizontally (the
+  // scrollbar is hidden, so without this they look stuck)
+  document.querySelectorAll('.chip-scroll').forEach(function (row) {
+    row.addEventListener('wheel', function (e) {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal scroll
+      if (row.scrollWidth <= row.clientWidth) return;
+      e.preventDefault();
+      row.scrollLeft += e.deltaY;
+    }, { passive: false });
+  });
+
   // keep the filter bar pinned right below the real topbar height
   function setTopbarVar() {
     document.documentElement.style.setProperty('--topbar-h',

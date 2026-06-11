@@ -3,319 +3,136 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Haps — Discover what's happening near you</title>
-<meta name="description" content="Haps is an event-discovery app. Swipe through local events, save the ones you love, and never miss what's happening near you.">
+<title>Haps — What's happening near you</title>
+<meta name="description" content="See what's happening near you — concerts, food, festivals, family fun and more. Browse, filter, and save local events with Haps.">
 <link rel="canonical" href="https://thehaps.app/">
 <link rel="icon" href="/assets/icon-512.png">
 <link rel="apple-touch-icon" href="/assets/icon-512.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Haps — Discover what's happening near you">
-<meta property="og:description" content="Swipe through local events, save the ones you love, and never miss what's happening near you.">
+<meta property="og:title" content="Haps — What's happening near you">
+<meta property="og:description" content="Concerts, food, festivals, family fun and more. Browse, filter, and save local events.">
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/styles.css?v=8">
+<link rel="stylesheet" href="/events/events.css?v=2">
 </head>
 <body>
-  <nav class="nav">
-    <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
-    <span class="links">
-      <a href="/events/">Browse events</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/terms">Terms</a>
-      <a class="nav-cta" href="/beta">Join beta</a>
-    </span>
-  </nav>
 
-  <header class="hero">
-    <img class="symbol" src="/assets/icon-512.png" alt="Haps logo">
-    <h1>Discover what's happening near you</h1>
-    <p class="tag">Swipe through local events, save the ones you love, and never miss what's going on nearby.</p>
-    <div class="hero-cta">
-      <a class="btn-hero" href="#beta">Join the beta →</a>
-      <a class="btn-hero btn-hero-ghost" href="/events/">Browse events on the web</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
+      <div class="searchbox">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="searchInput" type="search" placeholder="Search events, venues…" autocomplete="off" aria-label="Search events">
+        <button id="searchClear" class="search-clear" aria-label="Clear search" hidden>&times;</button>
+      </div>
+      <button id="savedBtn" class="saved-btn" aria-pressed="false" title="Your saved events">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.8-10-9.3C.4 8.6 2.4 5 6 5c2.2 0 3.6 1.2 6 3.6C14.4 6.2 15.8 5 18 5c3.6 0 5.6 3.6 4 6.7C19.5 16.2 12 21 12 21z"/></svg>
+        <span id="savedCount" class="saved-count" hidden>0</span>
+      </button>
+      <a class="getapp-btn" href="/beta">Get the app</a>
     </div>
-    <p class="soon-note">Now in beta on Android &amp; iOS</p>
   </header>
 
-  <section class="shots" aria-label="A peek inside the app">
-    <div class="shots-head">
-      <h2>Take a peek inside</h2>
-      <p class="shots-sub">Swipe, filter, map, and save your way to the perfect night out. Tap any screen to enlarge.</p>
-    </div>
-    <div class="carousel">
-      <button type="button" class="car-arrow car-prev" aria-label="Previous screenshots">‹</button>
-      <ul class="shots-strip" id="shotsStrip">
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: Swipe to discover">
-            <img src="/assets/screenshots/01-discover.jpg" width="600" height="1299" loading="lazy" alt="Swiping through a Date Night event card in the Haps discovery feed">
-          </button>
-          <span class="shot-cap">Swipe to discover</span>
-        </li>
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: See what's on tonight">
-            <img src="/assets/screenshots/02-tonight.jpg" width="600" height="1299" loading="lazy" alt="A trending event showing under the Tonight filter">
-          </button>
-          <span class="shot-cap">See what's on tonight</span>
-        </li>
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: Get the full details">
-            <img src="/assets/screenshots/03-detail.jpg" width="600" height="1299" loading="lazy" alt="Event detail page with photos, time, location, and tags">
-          </button>
-          <span class="shot-cap">Get the full details</span>
-        </li>
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: Filter to your taste">
-            <img src="/assets/screenshots/04-filters.jpg" width="600" height="1299" loading="lazy" alt="Filters panel with quick picks, time, price, and category options">
-          </button>
-          <span class="shot-cap">Filter to your taste</span>
-        </li>
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: Browse the whole list">
-            <img src="/assets/screenshots/05-list.jpg" width="600" height="1299" loading="lazy" alt="A scrollable list of nearby events happening tonight">
-          </button>
-          <span class="shot-cap">Browse the whole list</span>
-        </li>
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: Find it on the map">
-            <img src="/assets/screenshots/06-map.jpg" width="600" height="1299" loading="lazy" alt="Map view with event pins across the Salt Lake City area">
-          </button>
-          <span class="shot-cap">Find it on the map</span>
-        </li>
-        <li class="shot">
-          <button type="button" class="shot-open" aria-label="Enlarge: Save your favorites">
-            <img src="/assets/screenshots/07-saved.jpg" width="600" height="1299" loading="lazy" alt="Saved events list with two favorited festivals">
-          </button>
-          <span class="shot-cap">Save your favorites</span>
-        </li>
-      </ul>
-      <button type="button" class="car-arrow car-next" aria-label="More screenshots">›</button>
-    </div>
+  <section class="heroband" id="heroband">
+    <h1>What's happening <span id="heroCity">near you</span></h1>
+    <p>Fresh local events, updated every day. Save the ones you love — and take them with you in the app.</p>
   </section>
 
-  <main>
-    <p class="lead">Haps pulls together events from venues, ticketing platforms, and public calendars across your area — so finding something to do is as easy as a swipe.</p>
+  <div class="filterbar" id="filterbar">
+    <div class="filter-row">
+      <button class="chip chip-loc" id="locChip" aria-haspopup="dialog">
+        <span aria-hidden="true">📍</span> <span id="locLabel">Salt Lake City · 25 mi</span>
+      </button>
+      <span class="chip-divider" aria-hidden="true"></span>
+      <div class="chip-scroll" id="timeChips" role="group" aria-label="When">
+        <button class="chip is-on" data-when="all">Anytime</button>
+        <button class="chip" data-when="today">Today</button>
+        <button class="chip" data-when="tomorrow">Tomorrow</button>
+        <button class="chip" data-when="weekend">This weekend</button>
+        <button class="chip" data-when="week">Next 7 days</button>
+        <button class="chip chip-free" id="freeChip" aria-pressed="false">Free</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="chip-scroll" id="catChips" role="group" aria-label="Categories"></div>
+    </div>
+  </div>
 
-    <section class="how" aria-label="How Haps works">
-      <h2>How Haps works</h2>
-      <ol class="how-steps">
-        <li>
-          <span class="how-num">1</span>
-          <div>
-            <h3>Swipe through what&rsquo;s on</h3>
-            <p>Swipe right to save an event, left to pass. Browsing plans should feel fun, not like homework.</p>
-          </div>
-        </li>
-        <li>
-          <span class="how-num">2</span>
-          <div>
-            <h3>Saving just means &ldquo;remember this&rdquo;</h3>
-            <p>A saved event is a private bookmark so you don&rsquo;t forget it&rsquo;s happening — <strong>not a ticket, not an RSVP</strong>, and nobody gets notified. It&rsquo;s simply your shortlist of things you might want to do.</p>
-          </div>
-        </li>
-        <li>
-          <span class="how-num">3</span>
-          <div>
-            <h3>Show up if you feel like it</h3>
-            <p>When the day comes, check your saved list, grab tickets from the venue if you need them, and go — or don&rsquo;t. Haps just makes sure it was on your radar.</p>
-          </div>
-        </li>
-      </ol>
-    </section>
+  <main class="content">
+    <div class="toolbar">
+      <p class="result-meta" id="resultMeta">Loading events…</p>
+      <div class="toolbar-right">
+        <label class="sort-wrap">Sort
+          <select id="sortSel" aria-label="Sort events">
+            <option value="soonest">Soonest</option>
+            <option value="trending">Trending</option>
+          </select>
+        </label>
+        <div class="view-toggle" role="group" aria-label="View">
+          <button id="viewGrid" class="is-on" aria-pressed="true">Grid</button>
+          <button id="viewMap" aria-pressed="false">Map</button>
+        </div>
+      </div>
+    </div>
 
-    <section class="features">
-      <div class="card">
-        <div class="ico">🔥</div>
-        <h3>Swipe to discover</h3>
-        <p>No endless feed to scroll — Haps shows you one event at a time. A few quick swipes and you&rsquo;ve got a plan.</p>
-      </div>
-      <div class="card">
-        <div class="ico">✨</div>
-        <h3>A "For You" feed</h3>
-        <p>Pick the categories you care about and Haps surfaces those first — concerts, food, nightlife, family, and more.</p>
-      </div>
-      <div class="card">
-        <div class="ico">📍</div>
-        <h3>Near you, your way</h3>
-        <p>Set your city and a search radius from 1 to 75 miles. Browse on a map or sort by what's happening tonight.</p>
-      </div>
-      <div class="card">
-        <div class="ico">💜</div>
-        <h3>Save &amp; sync</h3>
-        <p>Keep your favorites in one place and sync them across devices when you sign in. No ads, ever.</p>
-      </div>
-    </section>
+    <div class="saved-note" id="savedNote" hidden>
+      <strong>Your saves live in this browser.</strong> Get the Haps app to sync them to your phone and get reminders. <a href="/beta">Join the beta →</a>
+    </div>
+
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <div id="mapWrap" class="map-wrap" hidden><div id="map"></div></div>
+
+    <div class="state-box" id="stateBox" hidden></div>
+    <div class="load-more" id="loadMoreWrap" hidden>
+      <button id="loadMoreBtn" class="load-more-btn">Show more events</button>
+    </div>
+    <div id="sentinel" aria-hidden="true"></div>
   </main>
 
-  <section class="beta" id="beta" aria-label="Join the Haps beta">
-    <div class="beta-inner">
-      <h2>Join the beta</h2>
-      <p class="beta-sub">Haps is in early access — be one of the first to try it. Hop in, swipe around, and help shape what's next.</p>
-      <div class="beta-cards">
-        <div class="beta-card">
-          <h3 class="beta-os">
-            <span class="os-icon os-icon-android"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.4395 5.5586c-.675 1.1664-1.352 2.3318-2.0274 3.498-.0366-.0155-.0742-.0286-.1113-.043-1.8249-.6957-3.484-.8-4.42-.787-1.8551.0185-3.3544.4643-4.2597.8203-.084-.1494-1.7526-3.021-2.0215-3.4864a1.1451 1.1451 0 0 0-.1406-.1914c-.3312-.364-.9054-.4859-1.379-.203-.475.282-.7136.9361-.3886 1.5019 1.9466 3.3696-.0966-.2158 1.9473 3.3593.0172.031-.4946.2642-1.3926 1.0177C2.8987 12.176.452 14.772 0 18.9902h24c-.119-1.1108-.3686-2.099-.7461-3.0683-.7438-1.9118-1.8435-3.2928-2.7402-4.1836a12.1048 12.1048 0 0 0-2.1309-1.6875c.6594-1.122 1.312-2.2559 1.9649-3.3848.2077-.3615.1886-.7956-.0079-1.1191a1.1001 1.1001 0 0 0-.8515-.5332c-.5225-.0536-.9392.3128-1.0488.5449zm-.0391 8.461c.3944.5926.324 1.3306-.1563 1.6503-.4799.3197-1.188.0985-1.582-.4941-.3944-.5927-.324-1.3307.1563-1.6504.4727-.315 1.1812-.1086 1.582.4941zM7.207 13.5273c.4803.3197.5506 1.0577.1563 1.6504-.394.5926-1.1038.8138-1.584.4941-.48-.3197-.5503-1.0577-.1563-1.6504.4008-.6021 1.1087-.8106 1.584-.4941z"/></svg></span>
-            <span class="os-name">Android</span>
-            <span class="beta-tag">2 quick steps</span>
-          </h3>
-          <ol class="beta-steps">
-            <li><strong>Join the testers group</strong> — use the same Google account that's signed into the Play Store on your phone.</li>
-            <li><strong>Opt in on Google Play</strong>, then install Haps. Give it a minute after joining — if it says "not eligible," wait and refresh.</li>
-          </ol>
-          <div class="beta-btns">
-            <a class="beta-btn" href="https://groups.google.com/g/haps-android-beta-testers" target="_blank" rel="noopener">Step 1 · Join the group</a>
-            <a class="beta-btn beta-btn-2" href="https://play.google.com/apps/testing/org.rustdev.haps" target="_blank" rel="noopener">Step 2 · Opt in on Play</a>
-          </div>
-        </div>
-        <div class="beta-card">
-          <h3 class="beta-os">
-            <span class="os-icon os-icon-ios"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg></span>
-            <span class="os-name">iOS</span>
-            <span class="beta-tag">2 quick steps</span>
-          </h3>
-          <ol class="beta-steps">
-            <li><strong>Install TestFlight</strong> — Apple's free beta-testing app, from the App Store.</li>
-            <li><strong>Open the invite</strong> and tap Accept to install Haps.</li>
-          </ol>
-          <div class="beta-btns">
-            <a class="beta-btn" href="https://testflight.apple.com/join/bFtYrU5k" target="_blank" rel="noopener">Join on TestFlight</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <div class="app-banner" id="appBanner" hidden>
+    <span>💜 <strong>Haps is better in the app</strong> — swipe events, sync saves, get reminders.</span>
+    <a href="/beta">Join the beta</a>
+    <button id="bannerClose" aria-label="Dismiss">&times;</button>
+  </div>
 
-  <section class="request" id="request" aria-label="Request your city">
-    <div class="request-inner">
-      <h2>Not in your city yet?</h2>
-      <p class="request-sub">Haps is live in the Salt Lake City and Sacramento areas, with more on the way. Tell us where to go next — we prioritize new cities by demand.</p>
-      <form class="request-form" id="requestForm" novalidate>
-        <div class="rf-row">
-          <input class="rf-input" id="rfCity" type="text" placeholder="City or area *" maxlength="120" required autocomplete="address-level2">
-          <input class="rf-input" id="rfRegion" type="text" placeholder="State / region (optional)" maxlength="120" autocomplete="address-level1">
-        </div>
-        <input class="rf-input" id="rfEmail" type="email" placeholder="Email (optional) — we'll tell you when we launch there" maxlength="254" autocomplete="email">
-        <button class="rf-btn" type="submit" id="rfSubmit">Request my city</button>
-        <p class="rf-msg" id="rfMsg" role="status" aria-live="polite"></p>
-      </form>
+  <dialog class="loc-dialog" id="locDialog" aria-label="Choose your location">
+    <div class="loc-head">
+      <h2>Where are you looking?</h2>
+      <button class="dlg-close" data-close="locDialog" aria-label="Close">&times;</button>
     </div>
-  </section>
+    <button class="loc-geo" id="useGeo">🧭 Use my location</button>
+    <div class="loc-cities" id="cityList"></div>
+    <h3>Search radius</h3>
+    <div class="loc-radius" id="radiusChips"></div>
+    <p class="loc-note">Not in one of these areas yet? <a href="/about/#request">Request your city →</a></p>
+  </dialog>
 
-  <footer>
+  <dialog class="detail-dialog" id="detailDialog" aria-label="Event details">
+    <div id="detailBody"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <footer class="footer">
     <div class="inner">
       <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
       <span class="links">
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+        <a href="/about/">About</a>
+        <a href="/beta">Join the beta</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
       </span>
     </div>
   </footer>
 
-  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="App screenshot" hidden>
-    <button type="button" class="lb-close" aria-label="Close">&times;</button>
-    <button type="button" class="lb-nav lb-prev" aria-label="Previous screenshot">‹</button>
-    <figure class="lb-figure">
-      <img class="lb-img" id="lbImg" src="" alt="">
-      <figcaption class="lb-cap" id="lbCap"></figcaption>
-    </figure>
-    <button type="button" class="lb-nav lb-next" aria-label="Next screenshot">›</button>
-  </div>
+  <noscript>
+    <div style="max-width:560px;margin:3rem auto;padding:0 1.25rem;text-align:center;font-family:sans-serif">
+      <p>Browsing events on the web needs JavaScript enabled.</p>
+      <p><a href="/about/">Learn about Haps</a> · <a href="/beta">Get the app →</a></p>
+    </div>
+  </noscript>
 
-  <script>
-  (function () {
-    var lb = document.getElementById('lightbox');
-    if (!lb) return;
-    var lbImg = document.getElementById('lbImg');
-    var lbCap = document.getElementById('lbCap');
-    var opens = Array.prototype.slice.call(document.querySelectorAll('.shot-open'));
-    var slides = opens.map(function (b) {
-      var img = b.querySelector('img');
-      var cap = b.parentNode.querySelector('.shot-cap');
-      return { src: img.getAttribute('src'), alt: img.getAttribute('alt') || '', cap: cap ? cap.textContent : '' };
-    });
-    var idx = 0, lastFocus = null;
-    function show(i) {
-      idx = (i + slides.length) % slides.length;
-      var s = slides[idx];
-      lbImg.src = s.src; lbImg.alt = s.alt; lbCap.textContent = s.cap;
-    }
-    function open(i) {
-      lastFocus = document.activeElement;
-      show(i);
-      lb.hidden = false;
-      document.body.style.overflow = 'hidden';
-      lb.querySelector('.lb-close').focus();
-    }
-    function close() {
-      lb.hidden = true; lbImg.src = '';
-      document.body.style.overflow = '';
-      if (lastFocus && lastFocus.focus) lastFocus.focus();
-    }
-    opens.forEach(function (b, i) { b.addEventListener('click', function () { open(i); }); });
-    lb.querySelector('.lb-close').addEventListener('click', close);
-    lb.querySelector('.lb-prev').addEventListener('click', function (e) { e.stopPropagation(); show(idx - 1); });
-    lb.querySelector('.lb-next').addEventListener('click', function (e) { e.stopPropagation(); show(idx + 1); });
-    lb.addEventListener('click', function (e) { if (e.target === lb || e.target.classList.contains('lb-figure')) close(); });
-    document.addEventListener('keydown', function (e) {
-      if (lb.hidden) return;
-      if (e.key === 'Escape') close();
-      else if (e.key === 'ArrowLeft') show(idx - 1);
-      else if (e.key === 'ArrowRight') show(idx + 1);
-    });
-    var strip = document.getElementById('shotsStrip');
-    function nudge(dir) { strip.scrollBy({ left: dir * Math.round(strip.clientWidth * 0.8), behavior: 'smooth' }); }
-    var prev = document.querySelector('.car-prev'), next = document.querySelector('.car-next');
-    if (prev) prev.addEventListener('click', function () { nudge(-1); });
-    if (next) next.addEventListener('click', function () { nudge(1); });
-  })();
-  </script>
-
-  <script>
-  (function () {
-    var SUPABASE_URL = "https://cvcnugkqdgmcntsuplaj.supabase.co";
-    var SUPABASE_KEY = "sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz";
-    var form = document.getElementById('requestForm');
-    if (!form) return;
-    var msg = document.getElementById('rfMsg');
-    var btn = document.getElementById('rfSubmit');
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var city = document.getElementById('rfCity').value.trim();
-      msg.className = 'rf-msg'; msg.textContent = '';
-      if (!city) { msg.className = 'rf-msg rf-err'; msg.textContent = 'Please enter a city or area.'; return; }
-      var payload = {
-        city: city,
-        region: document.getElementById('rfRegion').value.trim() || null,
-        email: document.getElementById('rfEmail').value.trim() || null,
-        source: 'web'
-      };
-      btn.disabled = true; btn.textContent = 'Sending…';
-      fetch(SUPABASE_URL + '/rest/v1/location_requests', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(payload)
-      }).then(function (r) {
-        if (r.ok) {
-          form.reset();
-          msg.className = 'rf-msg rf-ok';
-          msg.textContent = "Thanks! We've added " + city + " to the list. 🎉";
-        } else {
-          msg.className = 'rf-msg rf-err';
-          msg.textContent = "Hmm, that didn't go through. Please try again.";
-        }
-        btn.disabled = false; btn.textContent = 'Request my city';
-      }).catch(function () {
-        msg.className = 'rf-msg rf-err';
-        msg.textContent = "Network error — please try again.";
-        btn.disabled = false; btn.textContent = 'Request my city';
-      });
-    });
-  })();
-  </script>
+  <script src="/events/app.js?v=2"></script>
 </body>
 </html>
