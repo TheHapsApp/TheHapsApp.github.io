@@ -11,9 +11,9 @@
   // ---------- config ----------
   var SB = 'https://cvcnugkqdgmcntsuplaj.supabase.co/rest/v1';
   var KEY = 'sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz';
-  var PAGE = 250;          // rows per REST page
-  var FILL_TARGET = 24;    // keep fetching until this many cards are visible
-  var MAX_FILL_FETCHES = 4;
+  var PAGE = 400;          // rows per REST page
+  var FILL_TARGET = 36;    // net-new visible cards to aim for per load action
+  var MAX_FILL_FETCHES = 5;
   var SEARCH_LIMIT = 300;
   var GRACE_MS = 4 * 3600e3; // feed floor: now - 4h, same as the app
 
@@ -482,8 +482,9 @@
   function visibleCount() {
     return visibleGroups().length;
   }
-  function loadFeedPage(fetchesLeft) {
+  function loadFeedPage(fetchesLeft, baseline) {
     var token = ++loadToken;
+    if (baseline === undefined) baseline = visibleCount();
     state.loading = true;
     state.error = false;
     rest(feedQuery(state.cursor || null))
@@ -492,9 +493,19 @@
         mergeRows(rows);
         state.cursor = rows.length >= PAGE && rows[rows.length - 1].start_time
           ? rows[rows.length - 1].start_time : null;
-        var more = state.cursor && fetchesLeft > 1 && visibleCount() < FILL_TARGET;
-        if (more) { renderGrid(); loadFeedPage(fetchesLeft - 1); }
-        else { state.loading = false; renderGrid(); }
+        // Recurring events collapse into already-visible cards, so a page of
+        // raw rows can net only a few NEW cards — keep fetching until this
+        // load action has actually added FILL_TARGET cards (or pages run out).
+        var more = state.cursor && fetchesLeft > 1 && (visibleCount() - baseline) < FILL_TARGET;
+        if (more) { renderGrid(); loadFeedPage(fetchesLeft - 1, baseline); }
+        else {
+          state.loading = false;
+          renderGrid();
+          // The observer only fires on intersection CHANGES; if a short load
+          // left the sentinel inside the prefetch margin it would never
+          // re-fire and auto-paging would stall at the button — chain instead.
+          setTimeout(maybeLoadMoreOnScroll, 0);
+        }
       })
       .catch(function () {
         if (token !== loadToken) return;
@@ -1023,7 +1034,7 @@
   });
   function maybeAutoFill() {
     if (!state.savedView && !state.q && state.cursor && visibleCount() < FILL_TARGET && !state.loading) {
-      loadFeedPage(2);
+      loadFeedPage(3, 0);
     }
   }
   els.sortSel.addEventListener('change', function () {
@@ -1033,7 +1044,7 @@
   els.viewGrid.addEventListener('click', function () { setView('grid'); });
   els.viewMap.addEventListener('click', function () { setView('map'); });
   els.savedBtn.addEventListener('click', function () { setSavedView(!state.savedView); });
-  els.loadMoreBtn.addEventListener('click', function () { if (state.cursor) loadFeedPage(1); });
+  els.loadMoreBtn.addEventListener('click', function () { if (state.cursor) loadFeedPage(3); });
 
   // search
   var searchTimer = null;
@@ -1095,12 +1106,17 @@
   });
 
   // infinite scroll
+  var sentinelInView = false;
+  function maybeLoadMoreOnScroll() {
+    if (sentinelInView && !state.loading && state.cursor && !state.q && !state.savedView && state.view === 'grid') {
+      loadFeedPage(3);
+    }
+  }
   if ('IntersectionObserver' in window) {
     new IntersectionObserver(function (entries) {
-      if (entries[0].isIntersecting && !state.loading && state.cursor && !state.q && !state.savedView && state.view === 'grid') {
-        loadFeedPage(1);
-      }
-    }, { rootMargin: '600px' }).observe(els.sentinel);
+      sentinelInView = entries[0].isIntersecting;
+      maybeLoadMoreOnScroll();
+    }, { rootMargin: '1400px' }).observe(els.sentinel);
   }
 
   // back/forward: open or close the detail dialog to match the hash
