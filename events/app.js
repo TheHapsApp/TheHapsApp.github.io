@@ -85,8 +85,9 @@
    'timeChips', 'freeChip', 'catChips', 'resultMeta', 'sortSel', 'viewGrid', 'viewMap',
    'savedNote', 'grid', 'mapWrap', 'stateBox', 'loadMoreWrap', 'loadMoreBtn', 'sentinel',
    'appBanner', 'bannerClose', 'locDialog', 'useGeo', 'cityList', 'radiusChips',
-   'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar',
-   'dateChip', 'calDialog', 'calTitle', 'calPrev', 'calNext', 'calDow', 'calGrid', 'calClear']
+   'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar', 'filtersToggle',
+   'dateChip', 'calDialog', 'calTitle', 'calPrev', 'calNext', 'calDow', 'calGrid', 'calClear',
+   'imgDialog', 'imgFull']
     .forEach(function (id) { els[id] = document.getElementById(id); });
 
   // ---------- tiny utils ----------
@@ -1102,8 +1103,17 @@
   // detail dialog save button (delegated — body is re-rendered per open)
   els.detailBody.addEventListener('click', function (e) {
     var heart = e.target.closest('[data-heart]');
-    if (heart) toggleSave(heart.getAttribute('data-heart'), heart.getAttribute('data-save-title') || '');
+    if (heart) { toggleSave(heart.getAttribute('data-heart'), heart.getAttribute('data-save-title') || ''); return; }
+    // tap the event photo → full-screen image viewer (mirrors the app)
+    var img = e.target.closest('.dt-media img');
+    if (img && img.src) {
+      els.imgFull.src = img.src;
+      els.imgDialog.showModal();
+    }
   });
+  // tap anywhere on the viewer (image or backdrop) closes it; Esc is native
+  els.imgDialog.addEventListener('click', function () { els.imgDialog.close(); });
+  els.imgDialog.addEventListener('close', function () { els.imgFull.src = ''; });
 
   // infinite scroll
   var sentinelInView = false;
@@ -1203,6 +1213,31 @@
       if (dragMoved) { e.preventDefault(); e.stopPropagation(); dragMoved = false; }
     }, true);
   });
+
+  // Expand/collapse the filter bar. Open = rows wrap so every chip is visible
+  // at once; closed = today's compact side-scrolling rows. Desktop has the
+  // vertical room, so it starts open; phones start closed. An explicit choice
+  // sticks via localStorage either way.
+  (function () {
+    var KEY = 'hapsFiltersOpen';
+    var stored = null;
+    try { stored = localStorage.getItem(KEY); } catch (e) { /* ok */ }
+    var open = stored !== null ? stored === '1'
+             : window.matchMedia('(min-width: 900px)').matches;
+    function applyOpen() {
+      els.filterbar.classList.toggle('is-open', open);
+      els.filtersToggle.setAttribute('aria-expanded', String(open));
+      els.filtersToggle.textContent = open ? 'Less ▴' : 'All filters ▾';
+      // re-run the chip-row arrow visibility checks for the new layout
+      window.dispatchEvent(new Event('resize'));
+    }
+    els.filtersToggle.addEventListener('click', function () {
+      open = !open;
+      try { localStorage.setItem(KEY, open ? '1' : '0'); } catch (e) { /* ok */ }
+      applyOpen();
+    });
+    applyOpen();
+  })();
 
   // keep the filter bar pinned right below the real topbar height
   function setTopbarVar() {

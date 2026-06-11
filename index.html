@@ -14,7 +14,7 @@
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/events/events.css?v=3">
+<link rel="stylesheet" href="/events/events.css?v=4">
 </head>
 <body>
 
@@ -45,6 +45,7 @@
         <span aria-hidden="true">📍</span> <span id="locLabel">Salt Lake City · 25 mi</span>
       </button>
       <span class="chip-divider" aria-hidden="true"></span>
+      <span class="row-label" aria-hidden="true">When</span>
       <div class="chip-scroll" id="timeChips" role="group" aria-label="When">
         <button class="chip is-on" data-when="all">Anytime</button>
         <button class="chip" data-when="today">Today</button>
@@ -54,8 +55,10 @@
         <button class="chip" id="dateChip" aria-haspopup="dialog">📅 Pick a date</button>
         <button class="chip chip-free" id="freeChip" aria-pressed="false">Free</button>
       </div>
+      <button class="chip filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filterbar">All filters ▾</button>
     </div>
     <div class="filter-row">
+      <span class="row-label" aria-hidden="true">What</span>
       <div class="chip-scroll" id="catChips" role="group" aria-label="Categories"></div>
     </div>
   </div>
@@ -127,6 +130,11 @@
     <div id="detailBody"></div>
   </dialog>
 
+  <dialog class="img-dialog" id="imgDialog" aria-label="Event image, tap to close">
+    <button class="dlg-close img-close" data-close="imgDialog" aria-label="Close image">&times;</button>
+    <img id="imgFull" src="" alt="Event image">
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <footer class="footer">
@@ -148,6 +156,6 @@
     </div>
   </noscript>
 
-  <script src="/events/app.js?v=5"></script>
+  <script src="/events/app.js?v=6"></script>
 </body>
 </html>
