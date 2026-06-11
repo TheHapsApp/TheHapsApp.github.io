@@ -98,22 +98,44 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
   border-bottom: 1px solid var(--line);
   padding: .55rem 0 .6rem;
 }
-.filter-row {
+.pills-row {
   max-width: var(--maxw); margin: 0 auto; padding: 0 1rem;
   display: flex; align-items: center; gap: .5rem;
 }
-.filter-row + .filter-row { margin-top: .45rem; }
-.chip-scroll {
-  display: flex; gap: .45rem; overflow-x: auto; scrollbar-width: none;
-  -webkit-overflow-scrolling: touch; padding: 2px;
-  /* Constrain the flex item so overflow happens INSIDE this scroller —
-     with the default min-width:auto it widens past the row and the chips
-     just clip with no way to scroll. flex-basis 0 (not auto) keeps the
-     scroller's huge content width out of the row's flex math, so siblings
-     (location chip, filters toggle) never get squeezed by it. */
-  flex: 1 1 0; min-width: 0; max-width: 100%;
+.pill {
+  display: inline-flex; align-items: center; gap: .4rem;
+  /* time/filters pills keep their natural width; only the location pill
+     (longest label) is allowed to shrink and ellipsize */
+  flex: 0 0 auto;
+  border: 1px solid #d6c9f2; background: #fff; color: var(--violet);
+  font-weight: 700; font-size: .88rem; padding: .45rem .95rem; border-radius: 999px;
+  transition: background .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease;
 }
-.chip-scroll::-webkit-scrollbar { display: none; }
+.pill:hover { background: #f6f1ff; }
+.pill .pill-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill .caret { font-size: .68rem; opacity: .75; transition: transform .15s ease; }
+.pill.is-open { background: var(--violet); border-color: var(--violet); color: #fff; box-shadow: 0 4px 14px rgba(109,40,217,.28); }
+.pill.is-open .caret { transform: rotate(180deg); }
+.pill.has-active:not(.is-open) { background: #f3edff; }
+#locPill { flex-shrink: 1; min-width: 0; }   /* ellipsize the city name before overflowing the row */
+@media (max-width: 430px) { .pill { font-size: .82rem; padding: .42rem .65rem; gap: .3rem; } }
+
+/* expanding option panel under the pills (one open at a time) */
+.panel {
+  max-width: var(--maxw); margin: .55rem auto 0; padding: .85rem 1rem .9rem;
+  border-top: 1px solid var(--line);
+  max-height: min(58vh, 480px); overflow-y: auto;
+}
+.panel-h {
+  margin: .95rem 0 .5rem; font-size: .7rem; font-weight: 800;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+}
+.panel-h:first-child { margin-top: 0; }
+.chip-wrap { display: flex; flex-wrap: wrap; gap: .45rem; padding: 2px; }
+.panel-clear {
+  margin: 1rem 0 .1rem; border: 0; background: none; padding: 0;
+  color: var(--violet); font-weight: 700; font-size: .88rem; text-decoration: underline;
+}
 .chip {
   flex: 0 0 auto; border: 1px solid var(--line); background: #fff; color: var(--body);
   font-weight: 600; font-size: .87rem; padding: .38rem .85rem; border-radius: 999px;
@@ -123,43 +145,8 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
 .chip:hover { border-color: #cfc4e8; }
 .chip:active { transform: scale(.97); }
 .chip.is-on { background: var(--ink); border-color: var(--ink); color: #fff; }
-.chip-loc {
-  background: #fff; border-color: #d6c9f2; color: var(--violet); font-weight: 700;
-  /* the one chip allowed to shrink: on narrow screens it ellipsizes instead of
-     forcing the row (and the whole page) wider than the viewport */
-  flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-}
-.chip-loc:hover { background: #f6f1ff; }
 .chip-free.is-on { background: #15803d; border-color: #15803d; }
-.chip-divider { flex: 0 0 1px; align-self: stretch; background: var(--line); margin: 0 .15rem; }
-.chip-arrow {
-  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; padding: 0;
-  border: 1px solid var(--line); background: #fff; color: var(--ink);
-  font-size: 1.15rem; line-height: 1; align-self: center;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(27,20,48,.10);
-}
-.chip-arrow:hover { background: #f6f1ff; border-color: #cfc4e8; }
-.chip-arrow:disabled { opacity: .35; cursor: default; }
-.chip-arrow:disabled:hover { background: #fff; border-color: var(--line); }
-@media (pointer: coarse) { .chip-arrow { display: none !important; } }
-@media (hover: hover) and (pointer: fine) { .chip-scroll { cursor: grab; } }
-.chip-scroll.dragging { cursor: grabbing; user-select: none; scroll-behavior: auto; }
 .chip-cat.is-on { background: var(--violet); border-color: var(--violet); }
-
-/* expand/collapse: open mode wraps every chip into view instead of side-scrolling */
-.filters-toggle { border-color: #d6c9f2; color: var(--violet); font-weight: 700; }
-.filters-toggle:hover { background: #f6f1ff; }
-.row-label {
-  display: none; flex: 0 0 auto; min-width: 2.6rem;
-  font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--muted); padding: .52rem 0;
-}
-.filterbar.is-open .row-label { display: block; }
-.filterbar.is-open .filter-row { align-items: flex-start; }
-.filterbar.is-open .chip-scroll { flex-wrap: wrap; overflow-x: visible; cursor: default; }
-.filterbar.is-open .chip-arrow { display: none !important; }
-@media (max-width: 560px) { .filters-toggle { font-size: .8rem; padding: .38rem .6rem; } }
 
 /* ---- content / toolbar ---- */
 .content { max-width: var(--maxw); margin: 0 auto; padding: 1.1rem 1rem 3rem; }
@@ -318,27 +305,22 @@ dialog::backdrop { background: rgba(15,10,28,.55); backdrop-filter: blur(2px); }
 }
 .dlg-close:hover { background: #e7e2f3; }
 
-.loc-dialog {
-  margin: auto; width: min(92vw, 460px); background: #fff; border-radius: 20px;
-  padding: 1.3rem 1.3rem 1.5rem; box-shadow: 0 24px 64px rgba(0,0,0,.3);
-}
-.loc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .9rem; }
-.loc-head h2 { margin: 0; color: var(--ink); font-size: 1.2rem; }
+/* location panel pieces */
 .loc-geo {
-  width: 100%; border: 1px dashed #c9b8ee; background: #faf7ff; color: var(--violet);
-  font-weight: 700; border-radius: 12px; padding: .7rem; margin-bottom: .9rem;
+  display: block; width: 100%; max-width: 360px;
+  border: 1px dashed #c9b8ee; background: #faf7ff; color: var(--violet);
+  font-weight: 700; border-radius: 12px; padding: .65rem; margin-bottom: .8rem;
 }
 .loc-geo:hover { background: #f3edff; }
-.loc-cities { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.loc-cities { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; max-width: 720px; }
 .loc-city {
   border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: .6rem .4rem;
   font-weight: 600; color: var(--body); font-size: .92rem;
 }
 .loc-city.is-on { border-color: var(--violet); background: #f3edff; color: var(--violet); font-weight: 800; }
-.loc-dialog h3 { margin: 1.1rem 0 .5rem; color: var(--ink); font-size: .95rem; }
-.loc-radius { display: flex; gap: .5rem; }
+.loc-radius { display: flex; gap: .5rem; max-width: 420px; }
 .loc-radius .chip { flex: 1; text-align: center; justify-content: center; }
-.loc-note { margin: 1.1rem 0 0; color: var(--muted); font-size: .88rem; text-align: center; }
+.loc-note { margin: .9rem 0 0; color: var(--muted); font-size: .88rem; }
 
 /* ---- calendar dialog ---- */
 .cal-dialog {

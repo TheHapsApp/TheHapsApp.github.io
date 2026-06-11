@@ -14,7 +14,7 @@
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/events/events.css?v=4">
+<link rel="stylesheet" href="/events/events.css?v=5">
 </head>
 <body>
 
@@ -40,26 +40,45 @@
   </section>
 
   <div class="filterbar" id="filterbar">
-    <div class="filter-row">
-      <button class="chip chip-loc" id="locChip" aria-haspopup="dialog">
-        <span aria-hidden="true">📍</span> <span id="locLabel">Salt Lake City · 25 mi</span>
+    <div class="pills-row">
+      <button class="pill" id="locPill" aria-expanded="false" aria-controls="panelLoc">
+        <span aria-hidden="true">📍</span><span class="pill-label" id="locLabel">Salt Lake City · 25 mi</span><span class="caret" aria-hidden="true">▾</span>
       </button>
-      <span class="chip-divider" aria-hidden="true"></span>
-      <span class="row-label" aria-hidden="true">When</span>
-      <div class="chip-scroll" id="timeChips" role="group" aria-label="When">
+      <button class="pill" id="timePill" aria-expanded="false" aria-controls="panelTime">
+        <span aria-hidden="true">🗓️</span><span class="pill-label" id="timeLabel">Anytime</span><span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <button class="pill" id="filtersPill" aria-expanded="false" aria-controls="panelFilters">
+        <span class="pill-label" id="filtersLabel">Filters</span><span class="caret" aria-hidden="true">▾</span>
+      </button>
+    </div>
+
+    <div class="panel" id="panelLoc" hidden aria-label="Location">
+      <button class="loc-geo" id="useGeo">🧭 Use my location</button>
+      <div class="loc-cities" id="cityList"></div>
+      <h3 class="panel-h">Search radius</h3>
+      <div class="loc-radius" id="radiusChips"></div>
+      <p class="loc-note">Not in one of these areas yet? <a href="/about/#request">Request your city →</a></p>
+    </div>
+
+    <div class="panel" id="panelTime" hidden aria-label="When">
+      <div class="chip-wrap" id="timeChips" role="group" aria-label="When">
         <button class="chip is-on" data-when="all">Anytime</button>
         <button class="chip" data-when="today">Today</button>
         <button class="chip" data-when="tomorrow">Tomorrow</button>
         <button class="chip" data-when="weekend">This weekend</button>
         <button class="chip" data-when="week">Next 7 days</button>
         <button class="chip" id="dateChip" aria-haspopup="dialog">📅 Pick a date</button>
-        <button class="chip chip-free" id="freeChip" aria-pressed="false">Free</button>
       </div>
-      <button class="chip filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filterbar">All filters ▾</button>
     </div>
-    <div class="filter-row">
-      <span class="row-label" aria-hidden="true">What</span>
-      <div class="chip-scroll" id="catChips" role="group" aria-label="Categories"></div>
+
+    <div class="panel" id="panelFilters" hidden aria-label="Filters">
+      <h3 class="panel-h">Price</h3>
+      <div class="chip-wrap">
+        <button class="chip chip-free" id="freeChip" aria-pressed="false">Free events only</button>
+      </div>
+      <h3 class="panel-h">Categories</h3>
+      <div class="chip-wrap" id="catChips" role="group" aria-label="Categories"></div>
+      <button class="panel-clear" id="filtersClear" hidden>Clear all filters</button>
     </div>
   </div>
 
@@ -99,18 +118,6 @@
     <a href="/beta">Join the beta</a>
     <button id="bannerClose" aria-label="Dismiss">&times;</button>
   </div>
-
-  <dialog class="loc-dialog" id="locDialog" aria-label="Choose your location">
-    <div class="loc-head">
-      <h2>Where are you looking?</h2>
-      <button class="dlg-close" data-close="locDialog" aria-label="Close">&times;</button>
-    </div>
-    <button class="loc-geo" id="useGeo">🧭 Use my location</button>
-    <div class="loc-cities" id="cityList"></div>
-    <h3>Search radius</h3>
-    <div class="loc-radius" id="radiusChips"></div>
-    <p class="loc-note">Not in one of these areas yet? <a href="/about/#request">Request your city →</a></p>
-  </dialog>
 
   <dialog class="cal-dialog" id="calDialog" aria-label="Pick a date">
     <div class="cal-head">
@@ -156,6 +163,6 @@
     </div>
   </noscript>
 
-  <script src="/events/app.js?v=6"></script>
+  <script src="/events/app.js?v=7"></script>
 </body>
 </html>

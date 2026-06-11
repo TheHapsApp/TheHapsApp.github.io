@@ -81,11 +81,13 @@
   };
 
   var els = {};
-  ['searchInput', 'searchClear', 'savedBtn', 'savedCount', 'heroCity', 'locChip', 'locLabel',
+  ['searchInput', 'searchClear', 'savedBtn', 'savedCount', 'heroCity', 'locLabel',
    'timeChips', 'freeChip', 'catChips', 'resultMeta', 'sortSel', 'viewGrid', 'viewMap',
    'savedNote', 'grid', 'mapWrap', 'stateBox', 'loadMoreWrap', 'loadMoreBtn', 'sentinel',
-   'appBanner', 'bannerClose', 'locDialog', 'useGeo', 'cityList', 'radiusChips',
-   'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar', 'filtersToggle',
+   'appBanner', 'bannerClose', 'useGeo', 'cityList', 'radiusChips',
+   'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar',
+   'locPill', 'timePill', 'filtersPill', 'timeLabel', 'filtersLabel',
+   'panelLoc', 'panelTime', 'panelFilters', 'filtersClear',
    'dateChip', 'calDialog', 'calTitle', 'calPrev', 'calNext', 'calDow', 'calGrid', 'calClear',
    'imgDialog', 'imgFull']
     .forEach(function (id) { els[id] = document.getElementById(id); });
@@ -890,11 +892,48 @@
     els.savedNote.hidden = !on;
     els.heroband.style.display = on ? 'none' : '';
     els.filterbar.style.display = on ? 'none' : '';
+    if (on) setPanel(null);
     resetAndLoad();
   }
 
+  // ---------- pills + expanding panels ----------
+  // Three summary pills (location / time / filters); tapping one expands its
+  // option panel below the row. One panel open at a time; each pill's label
+  // reflects the current selection.
+  var PANELS = {
+    loc: ['locPill', 'panelLoc'],
+    time: ['timePill', 'panelTime'],
+    filters: ['filtersPill', 'panelFilters']
+  };
+  var openPanel = null;
+  function setPanel(name) {
+    openPanel = name;
+    Object.keys(PANELS).forEach(function (k) {
+      var on = k === name;
+      els[PANELS[k][0]].classList.toggle('is-open', on);
+      els[PANELS[k][0]].setAttribute('aria-expanded', String(on));
+      els[PANELS[k][1]].hidden = !on;
+    });
+  }
+  var WHEN_LABELS = { all: 'Anytime', today: 'Today', tomorrow: 'Tomorrow', weekend: 'This weekend', week: 'Next 7 days' };
+  function updatePills() {
+    els.timeLabel.textContent = state.when === 'date' && state.date
+      ? fmtDayShort.format(parseLocalDate(state.date))
+      : (WHEN_LABELS[state.when] || 'Anytime');
+    els.timePill.classList.toggle('has-active', state.when !== 'all');
+    var n = Object.keys(state.cats).length + (state.freeOnly ? 1 : 0);
+    els.filtersLabel.textContent = n ? 'Filters · ' + n : 'Filters';
+    els.filtersPill.classList.toggle('has-active', n > 0);
+    els.filtersClear.hidden = n === 0;
+  }
+  els.locPill.addEventListener('click', function () {
+    if (openPanel !== 'loc') renderCityList();
+    setPanel(openPanel === 'loc' ? null : 'loc');
+  });
+  els.timePill.addEventListener('click', function () { setPanel(openPanel === 'time' ? null : 'time'); });
+  els.filtersPill.addEventListener('click', function () { setPanel(openPanel === 'filters' ? null : 'filters'); });
+
   // ---------- wiring ----------
-  els.locChip.addEventListener('click', function () { renderCityList(); els.locDialog.showModal(); });
   document.addEventListener('click', function (e) {
     var closer = e.target.closest('[data-close]');
     if (closer) {
@@ -903,18 +942,20 @@
     }
     var pop = document.getElementById('calPop');
     if (pop && !pop.hidden && !e.target.closest('.cal-menu')) pop.hidden = true;
+    // tap outside the filter bar (and outside any dialog) closes the open panel
+    if (openPanel && !e.target.closest('.filterbar') && !e.target.closest('dialog')) setPanel(null);
   });
-  [els.locDialog, els.detailDialog, els.calDialog].forEach(function (d) {
+  [els.detailDialog, els.calDialog].forEach(function (d) {
     d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
   });
 
-  els.cityList && els.locDialog.addEventListener('click', function (e) {
+  els.panelLoc.addEventListener('click', function (e) {
     var cityBtn = e.target.closest('[data-city]');
     if (cityBtn) {
       var c = CITIES.find(function (x) { return x[0] === cityBtn.getAttribute('data-city'); });
       if (c) {
         state.citySlug = c[0]; state.cityName = c[1]; state.lat = c[2]; state.lng = c[3];
-        renderLocUi(); els.locDialog.close(); resetAndLoad();
+        renderLocUi(); setPanel(null); resetAndLoad();
       }
       return;
     }
@@ -931,7 +972,7 @@
       state.citySlug = 'geo'; state.cityName = 'Near me';
       state.lat = pos.coords.latitude; state.lng = pos.coords.longitude;
       els.useGeo.textContent = '🧭 Use my location';
-      renderLocUi(); els.locDialog.close(); resetAndLoad();
+      renderLocUi(); setPanel(null); resetAndLoad();
     }, function () {
       els.useGeo.textContent = '🧭 Use my location';
       toast('Couldn\'t get your location');
@@ -947,6 +988,8 @@
       x.classList.toggle('is-on', x === b);
     });
     setDateChipUi();
+    updatePills();
+    setPanel(null);
     resetAndLoad();
   });
 
@@ -1004,7 +1047,9 @@
     state.date = b.getAttribute('data-date');
     els.timeChips.querySelectorAll('[data-when]').forEach(function (x) { x.classList.remove('is-on'); });
     setDateChipUi();
+    updatePills();
     els.calDialog.close();
+    setPanel(null);
     resetAndLoad();
   });
   els.calClear.addEventListener('click', function () {
@@ -1014,6 +1059,7 @@
       x.classList.toggle('is-on', x.getAttribute('data-when') === 'all');
     });
     setDateChipUi();
+    updatePills();
     els.calDialog.close();
     resetAndLoad();
   });
@@ -1021,6 +1067,16 @@
     state.freeOnly = !state.freeOnly;
     els.freeChip.classList.toggle('is-on', state.freeOnly);
     els.freeChip.setAttribute('aria-pressed', String(state.freeOnly));
+    updatePills();
+    resetAndLoad();
+  });
+  els.filtersClear.addEventListener('click', function () {
+    state.cats = {};
+    state.freeOnly = false;
+    els.freeChip.classList.remove('is-on');
+    els.freeChip.setAttribute('aria-pressed', 'false');
+    renderCatChips();
+    updatePills();
     resetAndLoad();
   });
   els.catChips.addEventListener('click', function (e) {
@@ -1029,6 +1085,7 @@
     var slug = b.getAttribute('data-cat');
     if (state.cats[slug]) delete state.cats[slug]; else state.cats[slug] = true;
     b.classList.toggle('is-on', !!state.cats[slug]);
+    updatePills();
     // category filtering is client-side (matches the app); no refetch needed
     syncHash(); renderGrid();
     maybeAutoFill();
@@ -1145,100 +1202,6 @@
     try { sessionStorage.setItem('hapsBannerHid', '1'); } catch (e) { /* ok */ }
   });
 
-  // Desktop chip-row scrolling: the scrollbar is hidden and mice can't
-  // touch-pan, so give every overflowing row ‹ › arrows, wheel support,
-  // and click-drag panning. Arrows hide themselves on touch devices (CSS)
-  // and when the row fits.
-  document.querySelectorAll('.chip-scroll').forEach(function (row) {
-    row.addEventListener('wheel', function (e) {
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal scroll
-      if (row.scrollWidth <= row.clientWidth) return;
-      e.preventDefault();
-      row.scrollLeft += e.deltaY;
-    }, { passive: false });
-
-    function mkArrow(glyph, label) {
-      var b = document.createElement('button');
-      b.className = 'chip-arrow';
-      b.type = 'button';
-      b.textContent = glyph;
-      b.setAttribute('aria-label', label);
-      b.hidden = true;
-      return b;
-    }
-    var prev = mkArrow('‹', 'Scroll left');
-    var next = mkArrow('›', 'Scroll right');
-    row.parentNode.insertBefore(prev, row);
-    row.parentNode.insertBefore(next, row.nextSibling);
-    function updateArrows() {
-      var over = row.scrollWidth > row.clientWidth + 4;
-      prev.hidden = !over;
-      next.hidden = !over;
-      if (over) {
-        prev.disabled = row.scrollLeft <= 2;
-        next.disabled = row.scrollLeft >= row.scrollWidth - row.clientWidth - 2;
-      }
-    }
-    prev.addEventListener('click', function () {
-      row.scrollBy({ left: -Math.round(row.clientWidth * 0.75), behavior: 'smooth' });
-    });
-    next.addEventListener('click', function () {
-      row.scrollBy({ left: Math.round(row.clientWidth * 0.75), behavior: 'smooth' });
-    });
-    row.addEventListener('scroll', updateArrows, { passive: true });
-    window.addEventListener('resize', updateArrows);
-    setTimeout(updateArrows, 0);
-    setTimeout(updateArrows, 500); // after chips/fonts settle
-
-    // click-drag panning with a mouse; suppress the trailing click when the
-    // user actually dragged so chips don't toggle accidentally
-    var dragging = false, dragMoved = false, dragX = 0, dragLeft = 0;
-    row.addEventListener('pointerdown', function (e) {
-      if (e.pointerType !== 'mouse' || e.button !== 0) return;
-      dragging = true; dragMoved = false;
-      dragX = e.clientX; dragLeft = row.scrollLeft;
-    });
-    window.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
-      var dx = e.clientX - dragX;
-      if (Math.abs(dx) > 4) { dragMoved = true; row.classList.add('dragging'); }
-      row.scrollLeft = dragLeft - dx;
-    });
-    window.addEventListener('pointerup', function () {
-      if (!dragging) return;
-      dragging = false;
-      row.classList.remove('dragging');
-    });
-    row.addEventListener('click', function (e) {
-      if (dragMoved) { e.preventDefault(); e.stopPropagation(); dragMoved = false; }
-    }, true);
-  });
-
-  // Expand/collapse the filter bar. Open = rows wrap so every chip is visible
-  // at once; closed = today's compact side-scrolling rows. Desktop has the
-  // vertical room, so it starts open; phones start closed. An explicit choice
-  // sticks via localStorage either way.
-  (function () {
-    var KEY = 'hapsFiltersOpen';
-    var stored = null;
-    try { stored = localStorage.getItem(KEY); } catch (e) { /* ok */ }
-    var open = stored !== null ? stored === '1'
-             : window.matchMedia('(min-width: 900px)').matches;
-    function applyOpen() {
-      els.filterbar.classList.toggle('is-open', open);
-      els.filtersToggle.setAttribute('aria-expanded', String(open));
-      els.filtersToggle.textContent = open ? 'Less ▴' : 'All filters ▾';
-      // re-run the chip-row arrow visibility checks for the new layout
-      window.dispatchEvent(new Event('resize'));
-    }
-    els.filtersToggle.addEventListener('click', function () {
-      open = !open;
-      try { localStorage.setItem(KEY, open ? '1' : '0'); } catch (e) { /* ok */ }
-      applyOpen();
-    });
-    applyOpen();
-  })();
-
   // keep the filter bar pinned right below the real topbar height
   function setTopbarVar() {
     document.documentElement.style.setProperty('--topbar-h',
@@ -1250,7 +1213,9 @@
   // ---------- init ----------
   var initialHash = applyHash();
   renderCatChips();
+  renderCityList();
   renderLocUi();
+  updatePills();
   els.sortSel.value = state.sort;
   els.freeChip.classList.toggle('is-on', state.freeOnly);
   els.freeChip.setAttribute('aria-pressed', String(state.freeOnly));
