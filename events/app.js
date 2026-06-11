@@ -429,7 +429,9 @@
     renderedGroups = gs;
     var html = '';
     gs.forEach(function (g, i) {
-      if (i === 7 || (i > 7 && (i - 7) % 12 === 0)) html += promoHtml();
+      // App-promo card: once early, then sparingly — every two dozen cards
+      // keeps it visible without feeling like ad inventory.
+      if (i === 9 || (i > 9 && (i - 9) % 24 === 0)) html += promoHtml();
       html += cardHtml(g);
     });
     els.grid.innerHTML = html;
