@@ -15,7 +15,11 @@
   (function () {
     var m = location.pathname.match(/\/event\/([A-Za-z0-9\-]+)/);
     var id = (m && m[1]) || new URLSearchParams(location.search).get('id') || '';
-    if (id) location.replace('/#e=' + encodeURIComponent(id));
+    if (id) {
+      document.querySelector('meta[name="apple-itunes-app"]')
+        .setAttribute('content', 'app-id=6775696204, app-argument=https://thehaps.app/event/' + id);
+      location.replace('/#e=' + encodeURIComponent(id));
+    }
   })();
 </script>
 </head>

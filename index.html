@@ -9,6 +9,16 @@
 <link rel="icon" href="/assets/icon-512.png">
 <link rel="apple-touch-icon" href="/assets/icon-512.png">
 <meta name="apple-itunes-app" content="app-id=6775696204">
+<script>
+// Shared event links land here as /#e={id}. Point the Smart App Banner's
+// Open button at the event so the app deep-links straight to it. Must run
+// synchronously in <head> — Safari reads the meta at page load.
+(function () {
+  var m = location.hash.match(/[#&]e=([A-Za-z0-9-]+)/);
+  if (m) document.querySelector('meta[name="apple-itunes-app"]')
+    .setAttribute('content', 'app-id=6775696204, app-argument=https://thehaps.app/event/' + m[1]);
+})();
+</script>
 <meta property="og:type" content="website">
 <meta property="og:title" content="Haps — What's happening near you">
 <meta property="og:description" content="Concerts, food, festivals, family fun and more. Browse, filter, and save local events.">
