@@ -6,3 +6,23 @@ posthog.init('phc_kdA422xs2LCRJ8fLKwB79APgs8JevXyTi5gJVjxMzkux', {
     api_host: 'https://us.i.posthog.com',
     defaults: '2026-01-30'
 });
+
+/* App-download funnel: named events on top of autocapture.
+   get_app_click  = any "Get the app" CTA (links to /beta)
+   app_store_click = an actual store link (App Store badge / Play opt-in).
+   Capture phase so site JS that stops propagation can't swallow these. */
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest && e.target.closest('a[href]');
+  if (!a) return;
+  var href = a.getAttribute('href') || '';
+  if (href.indexOf('apps.apple.com') !== -1) {
+    posthog.capture('app_store_click', { store: 'ios', href: href, page: location.pathname });
+  } else if (href.indexOf('play.google.com') !== -1) {
+    posthog.capture('app_store_click', { store: 'android', href: href, page: location.pathname });
+  } else if (href === '/beta' || href.indexOf('/beta/') === 0) {
+    posthog.capture('get_app_click', {
+      page: location.pathname,
+      cta_text: (a.textContent || '').trim().slice(0, 60)
+    });
+  }
+}, true);
