@@ -1,0 +1,55 @@
+# Builds and deploys thehaps.app to GitHub Pages.
+#
+# Pages is on "GitHub Actions" deploy (not branch deploy) so the ~25k+
+# generated /event/{id}/ pages live only in the build artifact and never
+# bloat the repo. Every push to main redeploys; the nightly cron regenerates
+# event pages after the scraper daily-pipeline (09:00 UTC) has finished.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 12:00 UTC (6am MT) — after the haps-scraper daily pipeline.
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Assemble site
+        run: |
+          mkdir -p /tmp/site
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='.wrangler' \
+            --exclude='scripts' --exclude='node_modules' \
+            ./ /tmp/site/
+      - name: Generate event pages + sitemap
+        run: node scripts/generate-event-pages.mjs --site /tmp/site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
