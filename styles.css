@@ -166,6 +166,9 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 .beta-btn-2:hover { background: rgba(255,255,255,.26); }
 .beta-btn-soon { background: rgba(255,255,255,.16); color: #fff; opacity: .8; cursor: default; }
 .beta-btn-soon:hover { background: rgba(255,255,255,.16); }
+.appstore-badge { display: inline-flex; justify-content: center; line-height: 0; }
+.appstore-badge img { height: 52px; width: auto; display: block; }
+.appstore-badge:hover { opacity: .92; }
 
 /* ---- request a city ---- */
 .request { background: var(--bg-soft); border-top: 1px solid var(--line); padding: 3.5rem 1.25rem 3.75rem; }

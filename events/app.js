@@ -428,7 +428,7 @@
     return '<aside class="card card-promo">' +
       '<h3>Like what you see?</h3>' +
       '<p>Haps is better in the app — swipe through events, sync your saves, and get reminders before things start.</p>' +
-      '<a href="/beta">Join the beta →</a>' +
+      '<a href="/beta">Get the app →</a>' +
     '</aside>';
   }
   function skeletonHtml() {
