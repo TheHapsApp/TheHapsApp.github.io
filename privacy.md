@@ -1,6 +1,6 @@
 # Privacy Policy for Haps
 
-_Last updated: 2026-06-05_
+_Last updated: 2026-06-11_
 
 ## Who we are
 
@@ -19,6 +19,7 @@ This policy explains what we collect, why, and what you control.
 - **An app-generated device ID** (random, not a hardware/advertising ID) — _Why:_ to keep your saves and check-ins working before you sign in. _Where:_ your device + our backend (Supabase).
 - **Anonymous usage analytics** — _Why:_ to understand how the app is used so we can improve it: things like app opens, feed loads, swipes (saved vs. passed), category interest, searches, screens opened, and errors. _Where:_ our own backend (Supabase). No names, emails, or message content — events are tied only to your app user ID, which is anonymous until you choose to sign in, and are **de-identified if you delete your account**. **Any location in analytics is coarsened on your device to roughly a 1 km area** — we never store a precise coordinate in analytics. You can turn this off anytime in **Settings → "Share usage data."**
 - **App diagnostics (crash reports)** — we do not currently collect crash reports.
+- **Website analytics** (visits to thehaps.app only — pages viewed, referrer, browser and device type, approximate location derived from your IP address) — _Why:_ to understand how our website is used so we can improve it. Applies to the website only, never the app. _Where:_ PostHog (our analytics provider, US servers).
 
 We do **not** collect:
 
@@ -30,7 +31,7 @@ We do **not** collect:
 
 ## How we use it
 
-To make the app work — showing you events, syncing your saves between your phones, signing you in — and to understand how it's used so we can improve it (see **Anonymous usage analytics** above). We process usage analytics ourselves on our own backend; we do not sell your data, we do not run ads in the app, and we do not share data with brokers, advertisers, or third-party analytics resellers. You can opt out of usage analytics in **Settings → "Share usage data"** at any time without losing any app features.
+To make the app work — showing you events, syncing your saves between your phones, signing you in — and to understand how it's used so we can improve it (see **Anonymous usage analytics** above). We process the app's usage analytics ourselves on our own backend; our website (thehaps.app) uses PostHog, an analytics service provider, to measure site visits (see **Third-party services** below). We do not sell your data, we do not run ads in the app, and we do not share data with brokers, advertisers, or third-party analytics resellers. You can opt out of usage analytics in **Settings → "Share usage data"** at any time without losing any app features.
 
 ## Third-party services
 
@@ -41,6 +42,7 @@ Haps uses these providers; each has its own privacy policy:
 - **Google Sign-In** (login option) — same as above
 - **Sign in with Apple** (login option) — https://www.apple.com/legal/privacy/
 - **Gemini API by Google** (categorizes scraped events, server-side only — never sees your data) — https://policies.google.com/privacy
+- **PostHog** (website analytics on thehaps.app only — not used in the app) — https://posthog.com/privacy
 
 If you sign in with one of the OAuth options, that provider tells us your name, email, and profile picture. They may also log the sign-in event on their side.
 

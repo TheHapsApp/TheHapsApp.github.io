@@ -8,6 +8,7 @@
 <link rel="canonical" href="https://thehaps.app/privacy">
 <link rel="icon" href="/assets/icon-512.png">
 <link rel="stylesheet" href="/styles.css?v=7">
+<script src="/assets/analytics.js"></script>
 </head>
 <body>
   <nav class="nav">
@@ -17,7 +18,7 @@
 
   <main class="legal">
     <h1>Privacy Policy for Haps</h1>
-    <p class="updated">Last updated: 2026-06-05</p>
+    <p class="updated">Last updated: 2026-06-11</p>
 
     <h2>Who we are</h2>
     <p>Haps is an event-discovery app operated by <strong>Daniel Rust</strong> (&ldquo;Haps App,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;). You can reach us at <strong>admin@thehaps.app</strong>.</p>
@@ -36,6 +37,7 @@
         <tr><td><strong>An app-generated device ID</strong> (random, not a hardware/advertising ID)</td><td>To keep your saves and check-ins working before you sign in</td><td>Your device + our backend (Supabase)</td></tr>
         <tr><td><strong>Anonymous usage analytics</strong> (app opens, feed loads, swipes saved vs. passed, category interest, searches, screens opened, errors)</td><td>To understand how the app is used so we can improve it. No names, emails, or message content; tied only to your app user ID (anonymous until you sign in) and de-identified if you delete your account. Any location is coarsened on your device to roughly a 1&nbsp;km area — never a precise coordinate. Opt out anytime in Settings &rarr; &ldquo;Share usage data.&rdquo;</td><td>Our own backend (Supabase)</td></tr>
         <tr><td><strong>App diagnostics (crash reports)</strong></td><td>To fix bugs</td><td>We do not currently collect crash reports</td></tr>
+        <tr><td><strong>Website analytics</strong> (visits to thehaps.app only — pages viewed, referrer, browser and device type, approximate location derived from your IP address)</td><td>To understand how our website is used so we can improve it. Applies to the website only, never the app.</td><td>PostHog (our analytics provider, US servers)</td></tr>
       </tbody>
     </table>
     <p>We do <strong>not</strong> collect:</p>
@@ -48,7 +50,7 @@
     </ul>
 
     <h2>How we use it</h2>
-    <p>To make the app work — showing you events, syncing your saves between your phones, signing you in — and to understand how it&rsquo;s used so we can improve it (see <strong>Anonymous usage analytics</strong> above). We process usage analytics ourselves on our own backend; we do not sell your data, we do not run ads in the app, and we do not share data with brokers, advertisers, or third-party analytics resellers. You can opt out of usage analytics in <strong>Settings &rarr; &ldquo;Share usage data&rdquo;</strong> at any time without losing any app features.</p>
+    <p>To make the app work — showing you events, syncing your saves between your phones, signing you in — and to understand how it&rsquo;s used so we can improve it (see <strong>Anonymous usage analytics</strong> above). We process the app&rsquo;s usage analytics ourselves on our own backend; our website (thehaps.app) uses PostHog, an analytics service provider, to measure site visits (see <strong>Third-party services</strong> below). We do not sell your data, we do not run ads in the app, and we do not share data with brokers, advertisers, or third-party analytics resellers. You can opt out of usage analytics in <strong>Settings &rarr; &ldquo;Share usage data&rdquo;</strong> at any time without losing any app features.</p>
 
     <h2>Third-party services</h2>
     <p>Haps uses these providers; each has its own privacy policy:</p>
@@ -58,6 +60,7 @@
       <li><strong>Google Sign-In</strong> (login option) — same as above</li>
       <li><strong>Sign in with Apple</strong> (login option) — <a href="https://www.apple.com/legal/privacy/">https://www.apple.com/legal/privacy/</a></li>
       <li><strong>Gemini API by Google</strong> (categorizes scraped events, server-side only — never sees your data) — <a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a></li>
+      <li><strong>PostHog</strong> (website analytics on thehaps.app only — not used in the app) — <a href="https://posthog.com/privacy">https://posthog.com/privacy</a></li>
     </ul>
     <p>If you sign in with one of the OAuth options, that provider tells us your name, email, and profile picture. They may also log the sign-in event on their side.</p>
 
