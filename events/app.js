@@ -58,7 +58,7 @@
     ['st-george', 'St. George', 37.0965, -113.5684],
     ['sacramento', 'Sacramento', 38.5816, -121.4944]
   ];
-  var RADII = [10, 25, 50, 75];
+  var RADIUS_MIN = 1, RADIUS_MAX = 75;
 
   // ---------- state ----------
   var state = {
@@ -86,7 +86,7 @@
   ['searchInput', 'searchClear', 'savedBtn', 'savedCount', 'heroCity', 'locLabel',
    'timeChips', 'freeChip', 'catChips', 'resultMeta', 'sortSel', 'viewGrid', 'viewMap',
    'savedNote', 'grid', 'mapWrap', 'stateBox', 'loadMoreWrap', 'loadMoreBtn', 'sentinel',
-   'appBanner', 'bannerClose', 'useGeo', 'cityList', 'radiusChips',
+   'appBanner', 'bannerClose', 'useGeo', 'cityList', 'radiusSlider', 'radiusVal',
    'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar',
    'locPill', 'timePill', 'filtersPill', 'timeLabel', 'filtersLabel',
    'panelLoc', 'panelTime', 'panelFilters', 'filtersClear',
@@ -385,9 +385,15 @@
     els.cityList.innerHTML = CITIES.map(function (c) {
       return '<button class="loc-city' + (state.citySlug === c[0] ? ' is-on' : '') + '" data-city="' + c[0] + '">' + esc(c[1]) + '</button>';
     }).join('');
-    els.radiusChips.innerHTML = RADII.map(function (r) {
-      return '<button class="chip' + (state.radius === r ? ' is-on' : '') + '" data-radius="' + r + '">' + r + ' mi</button>';
-    }).join('');
+    syncRadiusUi();
+  }
+  function syncRadiusUi() {
+    els.radiusSlider.value = state.radius;
+    els.radiusVal.textContent = state.radius + ' mi';
+    // paint the track violet up to the thumb
+    var pct = ((state.radius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN)) * 100;
+    els.radiusSlider.style.background =
+      'linear-gradient(to right, var(--violet) ' + pct + '%, #e9e2f8 ' + pct + '%)';
   }
 
   // ---------- render: cards ----------
@@ -887,7 +893,8 @@
         if (c) { state.citySlug = c[0]; state.cityName = c[1]; state.lat = c[2]; state.lng = c[3]; }
       }
     }
-    if (h.r && RADII.indexOf(+h.r) >= 0) state.radius = +h.r;
+    var hr = Math.round(+h.r);
+    if (h.r && hr >= RADIUS_MIN && hr <= RADIUS_MAX) state.radius = hr;
     if (h.when && ['now', 'today', 'tonight', 'tomorrow', 'weekend', 'week'].indexOf(h.when) >= 0) state.when = h.when;
     else if (h.when === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(h.date || '')) { state.when = 'date'; state.date = h.date; }
     if (h.cat) h.cat.split(',').forEach(function (s) { if (CAT_BY_SLUG[s]) state.cats[s] = true; });
@@ -985,12 +992,14 @@
       }
       return;
     }
-    var radBtn = e.target.closest('[data-radius]');
-    if (radBtn) {
-      state.radius = +radBtn.getAttribute('data-radius');
-      renderCityList(); renderLocUi(); resetAndLoad();
-    }
   });
+  // Live label while dragging; only refetch when the thumb is released
+  // ('change') so we don't hammer the API on every tick.
+  els.radiusSlider.addEventListener('input', function () {
+    state.radius = +this.value;
+    syncRadiusUi(); renderLocUi();
+  });
+  els.radiusSlider.addEventListener('change', function () { resetAndLoad(); });
   els.useGeo.addEventListener('click', function () {
     if (!navigator.geolocation) { toast('Location not supported here'); return; }
     els.useGeo.textContent = 'Locating…';

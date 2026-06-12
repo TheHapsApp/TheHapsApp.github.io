@@ -318,8 +318,22 @@ dialog::backdrop { background: rgba(15,10,28,.55); backdrop-filter: blur(2px); }
   font-weight: 600; color: var(--body); font-size: .92rem;
 }
 .loc-city.is-on { border-color: var(--violet); background: #f3edff; color: var(--violet); font-weight: 800; }
-.loc-radius { display: flex; gap: .5rem; max-width: 420px; }
-.loc-radius .chip { flex: 1; text-align: center; justify-content: center; }
+.loc-radius { display: flex; align-items: center; gap: .7rem; max-width: 420px; }
+.rad-end { font-size: .8rem; font-weight: 600; color: var(--muted); flex: 0 0 auto; }
+.rad-slider {
+  flex: 1; min-width: 0; appearance: none; -webkit-appearance: none;
+  height: 7px; border-radius: 999px; background: #e9e2f8; cursor: pointer; margin: .55rem 0;
+}
+.rad-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--violet); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(27,20,48,.35);
+}
+.rad-slider::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--violet); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(27,20,48,.35);
+}
+.rad-slider:focus-visible { outline: 2px solid var(--violet); outline-offset: 4px; }
+#radiusVal { color: var(--violet); font-weight: 800; }
 .loc-note { margin: .9rem 0 0; color: var(--muted); font-size: .88rem; }
 
 /* ---- calendar dialog ---- */

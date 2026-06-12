@@ -25,7 +25,7 @@
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/events/events.css?v=5">
+<link rel="stylesheet" href="/events/events.css?v=6">
 <script src="/assets/analytics.js"></script>
 </head>
 <body>
@@ -67,8 +67,12 @@
     <div class="panel" id="panelLoc" hidden aria-label="Location">
       <button class="loc-geo" id="useGeo">🧭 Use my location</button>
       <div class="loc-cities" id="cityList"></div>
-      <h3 class="panel-h">Search radius</h3>
-      <div class="loc-radius" id="radiusChips"></div>
+      <h3 class="panel-h">Search radius · <output id="radiusVal" for="radiusSlider">25 mi</output></h3>
+      <div class="loc-radius">
+        <span class="rad-end" aria-hidden="true">1</span>
+        <input type="range" class="rad-slider" id="radiusSlider" min="1" max="75" step="1" value="25" aria-label="Search radius in miles">
+        <span class="rad-end" aria-hidden="true">75</span>
+      </div>
       <p class="loc-note">Not in one of these areas yet? <a href="/about/#request">Request your city →</a></p>
     </div>
 
@@ -177,6 +181,6 @@
     </div>
   </noscript>
 
-  <script src="/events/app.js?v=10"></script>
+  <script src="/events/app.js?v=11"></script>
 </body>
 </html>
