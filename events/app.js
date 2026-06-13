@@ -75,6 +75,9 @@
     q: '',
     view: 'grid',        // grid | map
     savedView: false,
+    savedUpcoming: 0,    // badge count: saved events that haven't ended yet
+                         // (NOT savedIds().length — that includes past saves
+                         //  synced from the app's full history)
     rows: [],            // raw rows, deduped by id, ascending start
     rowIds: {},
     shown: 20,           // display cap: cards revealed so far (grows by SHOW_STEP)
@@ -193,6 +196,9 @@
     if (on) saves[id] = { t: Date.now(), title: (title || '').slice(0, 80) };
     else delete saves[id];
     persistSaves();
+    // A toggled event is always one the user can currently see (i.e. upcoming),
+    // so the badge moves by exactly one. refreshSavedCount() reconciles later.
+    state.savedUpcoming = Math.max(0, state.savedUpcoming + (on ? 1 : -1));
     refreshSaveUi(id);
   }
   function toggleSave(id, title) {
@@ -205,10 +211,33 @@
       toast(on ? 'Saved 💜 — sign in to sync' : 'Removed from saves');
     }
   }
-  function refreshSaveUi(id) {
-    var n = savedIds().length;
+  function renderSavedBadge() {
+    var n = state.savedUpcoming;
     els.savedCount.textContent = String(n);
-    els.savedCount.hidden = n === 0;
+    els.savedCount.hidden = n <= 0;
+  }
+  // Count only saved events that haven't ended yet — mirrors the saved view's
+  // effEnd > now filter, so the badge matches what the heart screen shows
+  // (saves sync from the app include long-past events we never display).
+  function refreshSavedCount() {
+    var ids = savedIds();
+    if (!ids.length) { state.savedUpcoming = 0; renderSavedBadge(); return; }
+    var p = new URLSearchParams();
+    p.set('select', 'id,start_time,end_time,precision_class');
+    p.set('is_hidden', 'eq.false');
+    p.set('id', 'in.(' + ids.slice(0, 800).join(',') + ')');
+    rest('/events?' + p.toString()).then(function (rows) {
+      var now = new Date(), n = 0;
+      rows.forEach(function (r) {
+        var it = toItem(r);
+        if (it.start && it.effEnd && it.effEnd > now) n++;
+      });
+      state.savedUpcoming = n;
+      renderSavedBadge();
+    }).catch(function () { /* keep the prior count */ });
+  }
+  function refreshSaveUi(id) {
+    renderSavedBadge();
     if (id) {
       document.querySelectorAll('[data-heart="' + id + '"]').forEach(function (b) {
         b.classList.toggle('is-saved', isSaved(id));
@@ -302,6 +331,7 @@
         persistSaves(); refreshSaveUi();
         if (state.savedView) loadSaved();
       }
+      refreshSavedCount();   // recount upcoming now that the account saves are merged in
       if (localOnly.length) {
         var rows = localOnly.map(function (id) {
           return { user_id: authUser.id, event_id: id, device_id: DEVICE_ID };
@@ -688,6 +718,9 @@
     renderMeta(gs.length);
     renderStates(gs.length);
     if (state.view === 'map') renderMap(gs);
+    // In the saved view the rendered set IS the upcoming-saves set — use it as
+    // the source of truth for the badge (self-corrects any optimistic drift).
+    if (state.savedView && !state.loading) { state.savedUpcoming = gs.length; renderSavedBadge(); }
   }
   function renderMeta(n) {
     var where = state.citySlug === 'geo' ? 'near you' : 'near ' + state.cityName;
@@ -1525,6 +1558,7 @@
   setDateChipUi();
   if (state.q) { els.searchInput.value = state.q; els.searchClear.hidden = false; }
   refreshSaveUi();
+  refreshSavedCount();
   renderAuthUi();
   wireAuth();
   if (state.savedView) {
