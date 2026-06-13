@@ -32,8 +32,12 @@ const GRACE_MS = 4 * 3600e3;
 
 const SELECT = 'id,title,one_line_summary,description,start_time,end_time,venue,address,city,state,' +
   'latitude,longitude,image_url,ticket_url,event_url,link_url,original_url,is_free,price_summary,' +
-  'age_restriction,precision_class,is_long_running,exhibit_id,' +
-  'event_category_map(is_primary,event_categories(name,slug))';
+  'age_restriction,precision_class,is_long_running,exhibit_id';
+// Category map is fetched separately (see attachCategories) rather than embedded
+// in SELECT — embedding made every offset page recompute the category JSON for
+// all preceding rows, blowing the 3s anon statement_timeout past ~28k events.
+const ECM_SELECT = 'event_id,is_primary,event_categories(name,slug)';
+const ECM_CHUNK = 150; // event ids per batch — keeps each ?in.(...) URL well under proxy limits
 
 // Static pages preserved at the head of the generated sitemap.
 const STATIC_URLS = [
@@ -261,7 +265,31 @@ async function fetchAll() {
     rows.push(...page);
     if (page.length < PAGE) break;
   }
+  await attachCategories(rows);
   return rows;
+}
+
+// Stitch each event's category map back onto the rows in the shape toItem()
+// expects: r.event_category_map = [{ is_primary, event_categories:{name,slug} }].
+// Batched indexed lookups on event_category_map.event_id — each request is
+// cheap and bounded, so no single query approaches the anon statement_timeout.
+async function attachCategories(rows) {
+  const byEvent = new Map();
+  for (let i = 0; i < rows.length; i += ECM_CHUNK) {
+    const ids = rows.slice(i, i + ECM_CHUNK).map(r => r.id).filter(Boolean);
+    if (!ids.length) continue;
+    const p = new URLSearchParams({ select: ECM_SELECT });
+    p.append('event_id', 'in.(' + ids.join(',') + ')');
+    const r = await fetch(`${SB}/event_category_map?${p}`, {
+      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
+    });
+    if (!r.ok) throw new Error(`PostgREST ${r.status}: ${await r.text()}`);
+    for (const m of await r.json()) {
+      if (!byEvent.has(m.event_id)) byEvent.set(m.event_id, []);
+      byEvent.get(m.event_id).push({ is_primary: m.is_primary, event_categories: m.event_categories });
+    }
+  }
+  for (const r of rows) r.event_category_map = byEvent.get(r.id) || [];
 }
 
 // ---------- event model ----------
