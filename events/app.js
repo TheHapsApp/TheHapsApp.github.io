@@ -379,7 +379,7 @@
   function renderLocUi() {
     els.locLabel.textContent = state.cityName + ' · ' + state.radius + ' mi';
     els.heroCity.textContent = state.citySlug === 'geo' ? 'near you' : 'near ' + state.cityName;
-    document.title = (state.citySlug === 'geo' ? 'Browse events near you' : state.cityName + ' events') + ' — Haps';
+    document.title = 'Things to do ' + (state.citySlug === 'geo' ? 'near you' : 'in ' + state.cityName) + ' — Haps';
   }
   function renderCityList() {
     els.cityList.innerHTML = CITIES.map(function (c) {

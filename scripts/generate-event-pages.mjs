@@ -45,6 +45,53 @@ const STATIC_URLS = [
   ['/delete-account', 'yearly', '0.5']
 ];
 
+/* City landing pages: same centers/radius as the interactive browser's city
+ * picker (events/app.js CITIES), Utah only while CA scraping is paused.
+ * `browser` is the hash slug the SPA understands (/#city=...). */
+const LANDING_CITIES = [
+  { slug: 'salt-lake-city', browser: 'slc', name: 'Salt Lake City', lat: 40.7608, lng: -111.8910,
+    blurb: 'From downtown concerts and festivals to family days in the parks, Salt Lake City always has something going on. Here’s everything coming up around SLC, updated every day.' },
+  { slug: 'provo', browser: 'provo', name: 'Provo & Orem', lat: 40.2338, lng: -111.6585,
+    blurb: 'Utah Valley keeps busy — live music, campus events, outdoor adventures, and family fun across Provo, Orem, and the surrounding cities, updated every day.' },
+  { slug: 'ogden', browser: 'ogden', name: 'Ogden', lat: 41.2230, lng: -111.9738,
+    blurb: 'Historic 25th Street, the mountains next door, and a packed local calendar — here’s what’s happening in and around Ogden, updated every day.' },
+  { slug: 'park-city', browser: 'park-city', name: 'Park City', lat: 40.6461, lng: -111.4980,
+    blurb: 'Mountain-town living means concerts, art strolls, outdoor events, and après everything. Here’s what’s coming up in Park City, updated every day.' },
+  { slug: 'logan', browser: 'logan', name: 'Logan', lat: 41.7370, lng: -111.8338,
+    blurb: 'Cache Valley’s best events — theater, markets, university happenings, and family activities in and around Logan, updated every day.' },
+  { slug: 'st-george', browser: 'st-george', name: 'St. George', lat: 37.0965, lng: -113.5684,
+    blurb: 'Sunshine, red rock, and a busy calendar — concerts, outdoor adventures, and community events across St. George and southern Utah, updated every day.' }
+];
+const CITY_RADIUS_MI = 25;
+const CAT_PAGE_MIN_GROUPS = 4;     // skip thin category pages
+const HUB_WINDOW_DAYS = 60;
+const FREE_WINDOW_DAYS = 30;
+const LIST_CAP = 60;
+
+// Per-category landing-page phrasing (falls back to "{label} events in {city}").
+const CAT_PHRASES = {
+  'music': 'Live music & concerts in',
+  'food-drink': 'Food & drink events in',
+  'nightlife': 'Nightlife & late-night events in',
+  'arts-culture': 'Arts & culture events in',
+  'theater-performing-arts': 'Theater & performing arts in',
+  'film-cinema': 'Movie screenings & film events in',
+  'family-kids': 'Family & kids activities in',
+  'outdoors-nature': 'Outdoor activities & nature events in',
+  'sports-fitness': 'Sports & fitness events in',
+  'markets-shopping': 'Markets & shopping events in',
+  'community': 'Community events in',
+  'date-night': 'Date night ideas in',
+  'education-workshops': 'Classes & workshops in',
+  'health-wellness': 'Health & wellness events in',
+  'holidays-seasonal': 'Seasonal & holiday events in',
+  'networking-business': 'Networking & business events in',
+  'religious-spiritual': 'Religious & spiritual events in',
+  'service': 'Volunteer & service opportunities in',
+  'singles': 'Singles events in',
+  'teens': 'Teen events & activities in'
+};
+
 const CATS = {
   'music': ['Music', '🎵'], 'food-drink': ['Food & Drink', '🍜'], 'nightlife': ['Nightlife', '🍸'],
   'arts-culture': ['Arts & Culture', '🎨'], 'theater-performing-arts': ['Theater', '🎭'],
@@ -97,6 +144,56 @@ function fmt(date, tz, opts) {
   return new Intl.DateTimeFormat('en-US', Object.assign({ timeZone: tz }, opts)).format(date);
 }
 const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function haversineMi(lat1, lng1, lat2, lng2) {
+  const R = 3958.8, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+const pad2 = n => String(n).padStart(2, '0');
+function localDateStr(date, tz) {
+  const p = tzParts(date, tz);
+  return `${p.y}-${pad2(p.m)}-${pad2(p.d)}`;
+}
+/* Upcoming weekend as local date strings (America/Denver — all landing cities
+ * are Utah). Mon–Thu → the coming Fri/Sat/Sun; Fri counts as the weekend's
+ * start; Sat → Sat+Sun; Sun → just Sunday. */
+function weekendDates() {
+  const now = new Date();
+  const tz = 'America/Denver';
+  const p = tzParts(now, tz);
+  const dowName = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(now);
+  const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
+  const base = Date.UTC(p.y, p.m - 1, p.d);
+  const day = n => {
+    const d = new Date(base + n * 86400e3);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  };
+  if (dow === 6) return [day(0), day(1)];
+  if (dow === 0) return [day(0)];
+  const fri = 5 - dow;
+  return [day(fri), day(fri + 1), day(fri + 2)];
+}
+function weekendLabel(dates) {
+  const f = s => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(y, m - 1, d)));
+  };
+  if (dates.length === 1) return f(dates[0]);
+  const a = f(dates[0]), b = f(dates[dates.length - 1]);
+  return a.split(' ')[0] === b.split(' ')[0] ? `${a}–${b.split(' ')[1]}` : `${a} – ${b}`;
+}
+function nearestCity(lat, lng) {
+  if (lat == null || lng == null) return null;
+  let best = null, bestD = CITY_RADIUS_MI;
+  for (const c of LANDING_CITIES) {
+    const d = haversineMi(lat, lng, c.lat, c.lng);
+    if (d <= bestD) { best = c; bestD = d; }
+  }
+  return best;
+}
 
 // ---------- fetch ----------
 async function fetchAll() {
@@ -213,6 +310,47 @@ function jsonLd(it, group, canonical) {
 }
 
 // ---------- page ----------
+const BASE_CSS = `
+:root{--violet:#7c3aed;--ink:#1b1430;--muted:#6b6480;--line:#e9e2f8;--bg:#faf8ff}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+.topbar{background:#fff;border-bottom:1px solid var(--line);padding:.65rem 1.1rem;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:.45rem;font-weight:800;font-size:1.15rem;color:var(--ink);text-decoration:none}.brand img{height:28px;width:28px;border-radius:7px}
+.getapp{background:var(--violet);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;padding:.45rem .9rem;border-radius:999px}
+main{max-width:680px;margin:0 auto;padding:1.2rem 1.1rem 3rem}
+.hero-img{width:100%;max-height:380px;object-fit:cover;border-radius:16px;border:1px solid var(--line);margin:.3rem 0 1rem}
+h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
+.lede{color:var(--muted);margin:.2rem 0 .8rem}
+.tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0}
+.tag{background:#efe9fb;color:#5b21b6;border-radius:999px;padding:.22rem .65rem;font-size:.82rem;font-weight:600}
+.tag-free{background:#e7f6ec;color:#15803d}.tag-age{background:#fdeaea;color:#b91c1c}
+.facts{list-style:none;padding:0;margin:.8rem 0}.facts li{padding:.3rem 0}
+.facts a{color:var(--violet)}
+.actions{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0 1.4rem}
+.btn{display:inline-block;text-decoration:none;font-weight:700;padding:.6rem 1.1rem;border-radius:12px;border:1.5px solid var(--line);color:var(--ink);background:#fff}
+.btn-primary{background:var(--violet);border-color:var(--violet);color:#fff}
+.dates h2{font-size:1.05rem;margin:1.2rem 0 .5rem}
+.pills{display:flex;flex-wrap:wrap;gap:.45rem}
+.pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:.3rem .7rem;font-size:.85rem;color:var(--ink);text-decoration:none}
+.pill.is-on{border-color:var(--violet);background:#efe9fb;font-weight:700}
+.desc{margin-top:1.2rem}.desc p{margin:.6rem 0}
+.morecity{margin:1.2rem 0 0;font-weight:700}.morecity a{color:var(--violet)}
+.appcta{margin-top:1.8rem;background:#fff;border:1px solid var(--line);border-radius:16px;padding:1rem 1.2rem}
+.appcta a{color:var(--violet);font-weight:700}
+.footer{border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;padding:1.2rem;text-align:center}
+.footer a{color:var(--muted)}
+h2{font-size:1.15rem;margin:1.6rem 0 .6rem}
+.ev-list{list-style:none;padding:0;margin:.4rem 0}
+.ev{background:#fff;border:1px solid var(--line);border-radius:14px;padding:.7rem .95rem;margin:.55rem 0}
+.ev-date{display:block;color:var(--violet);font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.02em}
+.ev-title{display:inline-block;color:var(--ink);font-weight:700;font-size:1.02rem;text-decoration:none;margin:.1rem 0}
+.ev-title:hover{color:var(--violet)}
+.ev-venue{display:block;color:var(--muted);font-size:.88rem}
+.ev .tags{margin:.35rem 0 0}
+.quick{display:flex;flex-wrap:wrap;gap:.45rem;margin:.8rem 0 .4rem}
+.crumbs{font-size:.85rem;color:var(--muted);margin:.2rem 0 .6rem}.crumbs a{color:var(--muted)}
+.cities{margin-top:1.6rem;color:var(--muted);font-size:.9rem}.cities a{color:var(--violet);text-decoration:none;font-weight:600}
+`;
+
 function pageHtml(it, group) {
   const r = it.r;
   const rep = group.rep;
@@ -273,34 +411,7 @@ function pageHtml(it, group) {
 <meta property="og:image" content="${esc(img)}">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">${jsonLd(it, group, canonical)}</script>
-<style>
-:root{--violet:#7c3aed;--ink:#1b1430;--muted:#6b6480;--line:#e9e2f8;--bg:#faf8ff}
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
-.topbar{background:#fff;border-bottom:1px solid var(--line);padding:.65rem 1.1rem;display:flex;align-items:center;justify-content:space-between}
-.brand{display:flex;align-items:center;gap:.45rem;font-weight:800;font-size:1.15rem;color:var(--ink);text-decoration:none}.brand img{height:28px;width:28px;border-radius:7px}
-.getapp{background:var(--violet);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;padding:.45rem .9rem;border-radius:999px}
-main{max-width:680px;margin:0 auto;padding:1.2rem 1.1rem 3rem}
-.hero-img{width:100%;max-height:380px;object-fit:cover;border-radius:16px;border:1px solid var(--line);margin:.3rem 0 1rem}
-h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
-.lede{color:var(--muted);margin:.2rem 0 .8rem}
-.tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0}
-.tag{background:#efe9fb;color:#5b21b6;border-radius:999px;padding:.22rem .65rem;font-size:.82rem;font-weight:600}
-.tag-free{background:#e7f6ec;color:#15803d}.tag-age{background:#fdeaea;color:#b91c1c}
-.facts{list-style:none;padding:0;margin:.8rem 0}.facts li{padding:.3rem 0}
-.facts a{color:var(--violet)}
-.actions{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0 1.4rem}
-.btn{display:inline-block;text-decoration:none;font-weight:700;padding:.6rem 1.1rem;border-radius:12px;border:1.5px solid var(--line);color:var(--ink);background:#fff}
-.btn-primary{background:var(--violet);border-color:var(--violet);color:#fff}
-.dates h2{font-size:1.05rem;margin:1.2rem 0 .5rem}
-.pills{display:flex;flex-wrap:wrap;gap:.45rem}
-.pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:.3rem .7rem;font-size:.85rem;color:var(--ink);text-decoration:none}
-.pill.is-on{border-color:var(--violet);background:#efe9fb;font-weight:700}
-.desc{margin-top:1.2rem}.desc p{margin:.6rem 0}
-.appcta{margin-top:1.8rem;background:#fff;border:1px solid var(--line);border-radius:16px;padding:1rem 1.2rem}
-.appcta a{color:var(--violet);font-weight:700}
-.footer{border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;padding:1.2rem;text-align:center}
-.footer a{color:var(--muted)}
-</style>
+<style>${BASE_CSS}</style>
 <script src="/assets/analytics.js"></script>
 </head>
 <body>
@@ -321,6 +432,10 @@ h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
     </div>
     ${datesBlock}
     ${descHtml}
+    ${(() => {
+      const near = nearestCity(r.latitude, r.longitude);
+      return near ? `<p class="morecity"><a href="/events/${near.slug}/">More things to do in ${esc(near.name)} →</a></p>` : '';
+    })()}
     <div class="appcta"><strong>Take it with you.</strong> Save this event in the Haps app and get a reminder before it starts. <a href="/beta">Get the app →</a></div>
   </article>
 </main>
@@ -332,12 +447,213 @@ h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
 `;
 }
 
+// ---------- landing pages ----------
+function groupItems(items) {
+  const groups = new Map();
+  items.forEach(it => {
+    const key = (it.r.is_long_running && it.r.exhibit_id)
+      ? 'ex:' + it.r.exhibit_id
+      : norm(it.r.title) + '|' + norm(it.r.venue);
+    if (!groups.has(key)) groups.set(key, { rep: it, items: [] });
+    groups.get(key).items.push(it);
+  });
+  return groups;
+}
+
+function rowHtml(o, g) {
+  const r = o.r;
+  const when = fmt(o.start, o.tz, { weekday: 'short', month: 'short', day: 'numeric' }) +
+    (o.allDay || o.cont ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
+  let tags = '';
+  if (o.primary && CATS[o.primary]) tags += `<span class="tag">${CATS[o.primary][1]} ${esc(CATS[o.primary][0])}</span>`;
+  if (r.is_free === true) tags += '<span class="tag tag-free">Free</span>';
+  const dayCount = new Set(g.items.map(x => localDateStr(x.start, x.tz))).size;
+  if (dayCount > 1) tags += `<span class="tag">📅 ${dayCount} dates</span>`;
+  const venue = [r.venue, r.city].filter(Boolean).join(' · ');
+  return `<li class="ev"><span class="ev-date">${esc(when)}</span>` +
+    `<a class="ev-title" href="/event/${esc(o.id)}/">${esc(r.title)}</a>` +
+    (venue ? `<span class="ev-venue">${esc(venue)}</span>` : '') +
+    (tags ? `<div class="tags">${tags}</div>` : '') + '</li>';
+}
+
+function itemListLd(name, urls) {
+  return JSON.stringify({
+    '@context': 'https://schema.org', '@type': 'ItemList', name,
+    itemListElement: urls.slice(0, 30).map((u, i) => ({ '@type': 'ListItem', position: i + 1, url: u }))
+  }).replace(/</g, '\\u003c');
+}
+
+function landingHtml(o) {
+  // o: { path, headTitle, metaDesc, h1, lede, crumb, quick, picked:{rows,urls,total},
+  //      emptyMsg, browseHash, city }
+  const url = SITE + o.path;
+  const list = o.picked.rows.length
+    ? `<ol class="ev-list">${o.picked.rows.join('\n')}</ol>` +
+      (o.picked.total > o.picked.rows.length
+        ? `<p class="lede">…and ${o.picked.total - o.picked.rows.length} more — <a href="${esc(o.browseHash)}">browse them all</a>.</p>` : '')
+    : `<p class="lede">${esc(o.emptyMsg)}</p>`;
+  const others = LANDING_CITIES.filter(c => c.slug !== o.city.slug)
+    .map(c => `<a href="/events/${c.slug}/">${esc(c.name)}</a>`).join(' · ');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(o.headTitle)}</title>
+<meta name="description" content="${esc(o.metaDesc)}">
+<link rel="canonical" href="${esc(url)}">
+<link rel="icon" href="/assets/icon-512.png">
+<link rel="apple-touch-icon" href="/assets/icon-512.png">
+<meta name="apple-itunes-app" content="app-id=${APP_ID}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Haps">
+<meta property="og:title" content="${esc(o.h1)}">
+<meta property="og:description" content="${esc(o.metaDesc)}">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:image" content="${SITE}/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">${itemListLd(o.h1, o.picked.urls)}</script>
+<style>${BASE_CSS}</style>
+<script src="/assets/analytics.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
+  <a class="getapp" href="/beta">Get the app</a>
+</header>
+<main>
+  ${o.crumb ? `<nav class="crumbs">${o.crumb}</nav>` : ''}
+  <h1>${esc(o.h1)}</h1>
+  <p class="lede">${esc(o.lede)}</p>
+  ${o.quick ? `<div class="quick">${o.quick}</div>` : ''}
+  <div class="actions">
+    <a class="btn btn-primary" href="${esc(o.browseHash)}">Browse with filters &amp; map</a>
+    <a class="btn" href="/beta">Get the app</a>
+  </div>
+  ${list}
+  <div class="appcta"><strong>Never miss a thing.</strong> The Haps app learns what you like, syncs your saves, and reminds you before events start. <a href="/beta">Get the app →</a></div>
+  <p class="cities">Things to do in: ${others}</p>
+</main>
+<footer class="footer">
+  © 2026 Haps App · <a href="/">Browse all events</a> · <a href="/about/">About</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+</footer>
+</body>
+</html>
+`;
+}
+
+/* Builds all landing pages for one city. Returns [{ path, html }]. */
+function cityPages(city, items) {
+  const now = Date.now();
+  const cityItems = items.filter(it => it.r.latitude != null && it.r.longitude != null &&
+    haversineMi(it.r.latitude, it.r.longitude, city.lat, city.lng) <= CITY_RADIUS_MI);
+  const groups = [...groupItems(cityItems).values()];
+  const hubPath = `/events/${city.slug}/`;
+  const crumb = `<a href="/events/${city.slug}/">Things to do in ${esc(city.name)}</a> ›`;
+
+  // First occurrence per group matching pred → sorted rows + event-page URLs.
+  function pick(pred, cap = LIST_CAP) {
+    const picked = [];
+    groups.forEach(g => {
+      const o = g.items.find(pred);
+      if (o) picked.push({ o, g });
+    });
+    picked.sort((a, b) => a.o.start - b.o.start);
+    return {
+      total: picked.length,
+      rows: picked.slice(0, cap).map(p => rowHtml(p.o, p.g)),
+      urls: picked.slice(0, cap).map(p => `${SITE}/event/${p.o.id}/`)
+    };
+  }
+
+  const pages = [];
+  const wkDates = weekendDates();
+  const wkSet = new Set(wkDates);
+  const wkLabel = weekendLabel(wkDates);
+
+  const weekend = pick(o => wkSet.has(localDateStr(o.start, o.tz)));
+  pages.push({
+    path: `/events/${city.slug}/this-weekend/`,
+    html: landingHtml({
+      path: `/events/${city.slug}/this-weekend/`, city, crumb: `${crumb} This weekend`,
+      headTitle: `Things to Do in ${city.name} This Weekend | Haps`,
+      h1: `Things to do in ${city.name} this weekend`,
+      lede: `${weekend.total} event${weekend.total === 1 ? '' : 's'} happening around ${city.name} this weekend (${wkLabel}) — updated daily.`,
+      metaDesc: `What's happening in ${city.name} this weekend (${wkLabel}): ${weekend.total} events — concerts, markets, family fun, nightlife and more. Updated daily on Haps.`,
+      picked: weekend, emptyMsg: 'Nothing on the calendar yet — check back soon or browse all upcoming events.',
+      browseHash: `/#city=${city.browser}&when=weekend`
+    })
+  });
+
+  const free = pick(o => o.r.is_free === true && o.start.getTime() <= now + FREE_WINDOW_DAYS * 86400e3);
+  if (free.total >= CAT_PAGE_MIN_GROUPS) {
+    pages.push({
+      path: `/events/${city.slug}/free/`,
+      html: landingHtml({
+        path: `/events/${city.slug}/free/`, city, crumb: `${crumb} Free`,
+        headTitle: `Free Things to Do in ${city.name} | Haps`,
+        h1: `Free things to do in ${city.name}`,
+        lede: `${free.total} free events coming up around ${city.name} in the next ${FREE_WINDOW_DAYS} days — no ticket required.`,
+        metaDesc: `${free.total} free events in ${city.name}, Utah — free concerts, markets, family activities and more over the next ${FREE_WINDOW_DAYS} days. Updated daily on Haps.`,
+        picked: free, emptyMsg: 'No free events listed right now — check back soon.',
+        browseHash: `/#city=${city.browser}&free=1`
+      })
+    });
+  }
+
+  const catPages = [];
+  Object.keys(CATS).forEach(slug => {
+    const picked = pick(o => o.slugs.includes(slug) && o.start.getTime() <= now + HUB_WINDOW_DAYS * 86400e3);
+    if (picked.total < CAT_PAGE_MIN_GROUPS) return;
+    const phrase = CAT_PHRASES[slug] || `${CATS[slug][0]} events in`;
+    const h1 = `${phrase} ${city.name}`;
+    catPages.push({ slug, label: CATS[slug][0], emoji: CATS[slug][1], count: picked.total });
+    pages.push({
+      path: `/events/${city.slug}/${slug}/`,
+      html: landingHtml({
+        path: `/events/${city.slug}/${slug}/`, city, crumb: `${crumb} ${esc(CATS[slug][0])}`,
+        headTitle: `${h1.charAt(0).toUpperCase() + h1.slice(1)} | Haps`,
+        h1: h1.charAt(0).toUpperCase() + h1.slice(1),
+        lede: `${picked.total} upcoming ${CATS[slug][0].toLowerCase()} event${picked.total === 1 ? '' : 's'} around ${city.name} — updated daily.`,
+        metaDesc: `${picked.total} upcoming ${CATS[slug][0].toLowerCase()} events in ${city.name}, Utah. Dates, times, venues and tickets — updated daily on Haps.`,
+        picked, emptyMsg: 'Nothing listed right now — check back soon.',
+        browseHash: `/#city=${city.browser}&cat=${slug}`
+      })
+    });
+  });
+
+  const hub = pick(o => o.start.getTime() <= now + HUB_WINDOW_DAYS * 86400e3);
+  let quick = `<a class="pill is-on" href="/events/${city.slug}/this-weekend/">🗓️ This weekend</a>`;
+  if (free.total >= CAT_PAGE_MIN_GROUPS) quick += `<a class="pill" href="/events/${city.slug}/free/">💸 Free</a>`;
+  catPages.sort((a, b) => b.count - a.count).forEach(c => {
+    quick += `<a class="pill" href="/events/${city.slug}/${c.slug}/">${c.emoji} ${esc(c.label)}</a>`;
+  });
+  pages.unshift({
+    path: hubPath,
+    html: landingHtml({
+      path: hubPath, city, crumb: '',
+      headTitle: `Things to Do in ${city.name} — Local Events Calendar | Haps`,
+      h1: `Things to do in ${city.name}`,
+      lede: city.blurb,
+      metaDesc: `Looking for things to do in ${city.name}? ${hub.total} upcoming events — concerts, festivals, food, family fun, nightlife and more. Updated daily on Haps.`,
+      quick,
+      picked: hub, emptyMsg: 'Nothing listed right now — check back soon.',
+      browseHash: `/#city=${city.browser}`
+    })
+  });
+
+  return pages;
+}
+
 // ---------- sitemap ----------
-function sitemapXml(repIds) {
+function sitemapXml(repIds, landingPaths) {
   const lines = ['<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'];
   STATIC_URLS.forEach(([p, freq, pri]) => {
     lines.push(`  <url><loc>${SITE}${p}</loc><changefreq>${freq}</changefreq><priority>${pri}</priority></url>`);
+  });
+  landingPaths.forEach(p => {
+    lines.push(`  <url><loc>${SITE}${p}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>`);
   });
   repIds.forEach(id => {
     lines.push(`  <url><loc>${SITE}/event/${id}/</loc><changefreq>daily</changefreq><priority>0.6</priority></url>`);
@@ -361,14 +677,7 @@ async function main() {
   console.log(`${rows.length} rows → ${items.length} usable`);
 
   // Group multi-date series; rows arrive start-ascending so items[0] = earliest = representative.
-  const groups = new Map();
-  items.forEach(it => {
-    const key = (it.r.is_long_running && it.r.exhibit_id)
-      ? 'ex:' + it.r.exhibit_id
-      : norm(it.r.title) + '|' + norm(it.r.venue);
-    if (!groups.has(key)) groups.set(key, { rep: it, items: [] });
-    groups.get(key).items.push(it);
-  });
+  const groups = groupItems(items);
 
   const eventDir = path.join(siteDir, 'event');
   await rm(eventDir, { recursive: true, force: true });
@@ -384,12 +693,24 @@ async function main() {
     }
   }
 
+  // City / category landing pages under /events/{city}/...
+  const landingPaths = [];
+  for (const city of LANDING_CITIES) {
+    for (const page of cityPages(city, items)) {
+      const dir = path.join(siteDir, page.path.slice(1));
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, 'index.html'), page.html);
+      landingPaths.push(page.path);
+    }
+  }
+
   const repIds = [...groups.values()]
     .filter(g => /^[0-9a-f-]{36}$/i.test(g.rep.id))
     .map(g => g.rep.id);
-  await writeFile(path.join(siteDir, 'sitemap.xml'), sitemapXml(repIds));
+  await writeFile(path.join(siteDir, 'sitemap.xml'), sitemapXml(repIds, landingPaths));
 
   console.log(`Wrote ${written} event pages (${groups.size} collapsed events in sitemap) → ${eventDir}`);
+  console.log(`Wrote ${landingPaths.length} landing pages: ${landingPaths.join(' ')}`);
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
