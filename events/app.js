@@ -303,7 +303,11 @@
           { onConflict: 'user_id,event_id', ignoreDuplicates: true })
       : sbClient.from('event_saves').delete().eq('user_id', authUser.id).eq('event_id', id);
     Promise.resolve(q).then(function (res) {
-      if (res && res.error) revertSave(id, on, title);
+      if (res && res.error) { revertSave(id, on, title); return; }
+      // Mark a successful save as confirmed-on-server (saves[id].r). This is how
+      // the mirror later tells "removed on another device" (was on server, now
+      // gone → drop it) apart from "saved here while signed out" (push it up).
+      if (on && saves[id] && !saves[id].r) { saves[id].r = true; persistSaves(); }
     }, function () { revertSave(id, on, title); });
   }
   function revertSave(id, attemptedOn, title) {
@@ -312,35 +316,57 @@
     toast('Couldn’t sync — check your connection');
   }
 
-  // On sign-in: two-way merge. Pull the account's saves down into this browser,
-  // and push any browser-only saves up. Idempotent, so safe to run each load.
+  // True two-way mirror with the account (event_saves is the source of truth).
+  // Runs on sign-in and whenever the tab regains focus. Idempotent.
+  //  - account has it, we don't  → pull down
+  //  - we have it, account doesn't:
+  //      · it was confirmed on the server before → removed on another device → DROP it here
+  //      · never confirmed (saved while signed out) → PUSH it up, keep it
+  var syncing = false;
   function syncSavesOnSignIn() {
-    if (!sbClient || !authUser) return;
+    if (!sbClient || !authUser || syncing) return;
+    syncing = true;
     Promise.resolve(
       sbClient.from('event_saves').select('event_id').not('event_id', 'is', null)
     ).then(function (res) {
       if (!res || res.error) return;            // soft-fail: keep local saves
       var server = {};
       (res.data || []).forEach(function (row) { if (row.event_id) server[row.event_id] = true; });
-      var localOnly = savedIds().filter(function (id) { return !server[id]; });
-      var changed = false;
+
+      var changed = false, touched = [], toPush = [];
+      // Pull the account's saves down; flag them confirmed-on-server.
       Object.keys(server).forEach(function (id) {
-        if (!saves[id]) { saves[id] = { t: Date.now(), title: '' }; changed = true; }
+        if (!saves[id]) { saves[id] = { t: Date.now(), title: '', r: true }; touched.push(id); changed = true; }
+        else if (!saves[id].r) { saves[id].r = true; }
       });
-      if (changed) {
-        persistSaves(); refreshSaveUi();
-        if (state.savedView) loadSaved();
-      }
-      refreshSavedCount();   // recount upcoming now that the account saves are merged in
-      if (localOnly.length) {
-        var rows = localOnly.map(function (id) {
+      // Reconcile saves the account no longer has.
+      savedIds().forEach(function (id) {
+        if (server[id]) return;
+        var s = saves[id];
+        // r === true: confirmed-on-server before. Legacy saves predate the flag —
+        // an empty title means it came from a prior server pull, so treat it as
+        // confirmed too (a user-made save always carries the event's title).
+        var wasOnServer = s.r === true || (s.r === undefined && !s.title);
+        if (wasOnServer) { delete saves[id]; touched.push(id); changed = true; }  // mirror the removal
+        else toPush.push(id);                                                     // signed-out save → keep
+      });
+
+      if (changed) persistSaves();
+      touched.forEach(function (id) { refreshSaveUi(id); });   // fill/clear hearts on any visible cards
+      refreshSavedCount();                                     // authoritative badge (upcoming only)
+      if (changed && state.savedView) loadSaved();
+
+      if (toPush.length) {
+        var rows = toPush.map(function (id) {
           return { user_id: authUser.id, event_id: id, device_id: DEVICE_ID };
         });
-        Promise.resolve(
+        return Promise.resolve(
           sbClient.from('event_saves').upsert(rows, { onConflict: 'user_id,event_id', ignoreDuplicates: true })
-        ).catch(function () { /* best-effort */ });
+        ).then(function (r) {
+          if (r && !r.error) { toPush.forEach(function (id) { if (saves[id]) saves[id].r = true; }); persistSaves(); }
+        });
       }
-    });
+    }).catch(function () { /* best-effort */ }).then(function () { syncing = false; });
   }
 
   // ---- account UI (topbar button + popover) ----
@@ -408,6 +434,12 @@
       if (!els.authMenu.hidden && !e.target.closest('#authWrap')) closeAuthMenu();
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAuthMenu(); });
+
+    // Re-mirror when the tab regains focus, so changes made on the phone while
+    // this tab was in the background show up without a full reload.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && authUser) syncSavesOnSignIn();
+    });
 
     sbClient.auth.onAuthStateChange(function (event, session) {
       var u = session && session.user;
