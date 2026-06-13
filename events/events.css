@@ -76,6 +76,34 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
   padding: .5rem 1rem; border-radius: 999px; white-space: nowrap;
 }
 .getapp-btn:hover { background: #5b21b6; }
+
+/* ---- account / sign-in ---- */
+.auth-wrap { position: relative; flex: 0 0 auto; }
+.auth-btn {
+  width: 40px; height: 40px; border-radius: 50%; overflow: hidden; padding: 0;
+  border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .12s ease, border-color .12s ease, background .12s ease;
+}
+.auth-btn:hover { background: #faf7ff; border-color: #d6c9f2; color: var(--violet); }
+.auth-btn .auth-ico { width: 21px; height: 21px; }
+.auth-avatar { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.auth-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; min-width: 210px;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: .85rem;
+  box-shadow: 0 14px 36px rgba(40,16,70,.18);
+}
+.auth-id {
+  display: flex; flex-direction: column; gap: .12rem; min-width: 0;
+  padding: 0 .15rem .6rem; margin-bottom: .5rem; border-bottom: 1px solid var(--line);
+}
+.auth-id strong { font-size: .94rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-id span { font-size: .82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-signout {
+  width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--body); padding: .5rem .15rem; border-radius: 8px;
+}
+.auth-signout:hover { background: #f6f1ff; color: var(--violet); }
 @media (max-width: 560px) {
   .brand span, .brand { font-size: 0; }       /* icon-only brand on phones */
   .brand img { height: 30px; width: 30px; }

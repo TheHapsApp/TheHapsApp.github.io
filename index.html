@@ -43,6 +43,19 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.8-10-9.3C.4 8.6 2.4 5 6 5c2.2 0 3.6 1.2 6 3.6C14.4 6.2 15.8 5 18 5c3.6 0 5.6 3.6 4 6.7C19.5 16.2 12 21 12 21z"/></svg>
         <span id="savedCount" class="saved-count" hidden>0</span>
       </button>
+      <div class="auth-wrap" id="authWrap" hidden>
+        <button id="authBtn" class="auth-btn" title="Sign in" aria-haspopup="menu" aria-expanded="false">
+          <svg id="authIco" class="auth-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.3 4.3 0 1 0 0-8.6 4.3 4.3 0 0 0 0 8.6zM4 20.2a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <img id="authAvatar" class="auth-avatar" alt="" hidden>
+        </button>
+        <div id="authMenu" class="auth-menu" role="menu" hidden>
+          <div class="auth-id">
+            <strong id="authName"></strong>
+            <span id="authEmail"></span>
+          </div>
+          <button id="signOutBtn" class="auth-signout" role="menuitem">Sign out</button>
+        </div>
+      </div>
       <a class="getapp-btn" href="/beta">Get the app</a>
     </div>
   </header>
@@ -119,7 +132,7 @@
     </div>
 
     <div class="saved-note" id="savedNote" hidden>
-      <strong>Your saves live in this browser.</strong> Get the Haps app to sync them to your phone and get reminders. <a href="/beta">Get the app →</a>
+      <strong>Your saves live in this browser.</strong> Sign in or get the Haps app to sync them across your devices. <a href="/beta">Get the app →</a>
     </div>
 
     <div class="grid" id="grid" aria-live="polite"></div>
@@ -191,6 +204,7 @@
     </div>
   </noscript>
 
-  <script src="/events/app.js?v=12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/events/app.js?v=13"></script>
 </body>
 </html>

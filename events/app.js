@@ -9,7 +9,8 @@
   'use strict';
 
   // ---------- config ----------
-  var SB = 'https://cvcnugkqdgmcntsuplaj.supabase.co/rest/v1';
+  var SB_URL = 'https://cvcnugkqdgmcntsuplaj.supabase.co';
+  var SB = SB_URL + '/rest/v1';
   var KEY = 'sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz';
   var PAGE = 400;          // rows per REST page
   var SHOW_STEP = 20;      // cards revealed per page action (initial view + each "more")
@@ -91,7 +92,8 @@
    'locPill', 'timePill', 'filtersPill', 'timeLabel', 'filtersLabel',
    'panelLoc', 'panelTime', 'panelFilters', 'filtersClear',
    'dateChip', 'calDialog', 'calTitle', 'calPrev', 'calNext', 'calDow', 'calGrid', 'calClear',
-   'imgDialog', 'imgFull']
+   'imgDialog', 'imgFull',
+   'authWrap', 'authBtn', 'authIco', 'authAvatar', 'authMenu', 'authName', 'authEmail', 'signOutBtn']
     .forEach(function (id) { els[id] = document.getElementById(id); });
 
   // ---------- tiny utils ----------
@@ -143,11 +145,21 @@
   }
   function isSaved(id) { return !!saves[id]; }
   function savedIds() { return Object.keys(saves).filter(function (id) { return /^[0-9a-f-]{36}$/i.test(id); }); }
-  function toggleSave(id, title) {
-    if (saves[id]) { delete saves[id]; toast('Removed from saves'); }
-    else { saves[id] = { t: Date.now(), title: (title || '').slice(0, 80) }; toast('Saved 💜 — get the app to sync'); }
+  function setSaveLocal(id, on, title) {
+    if (on) saves[id] = { t: Date.now(), title: (title || '').slice(0, 80) };
+    else delete saves[id];
     persistSaves();
     refreshSaveUi(id);
+  }
+  function toggleSave(id, title) {
+    var on = !saves[id];
+    setSaveLocal(id, on, title);                  // optimistic — feels instant
+    if (sbClient && authUser) {
+      toast(on ? 'Saved 💜' : 'Removed from saves');
+      serverSave(id, on, title);
+    } else {
+      toast(on ? 'Saved 💜 — sign in to sync' : 'Removed from saves');
+    }
   }
   function refreshSaveUi(id) {
     var n = savedIds().length;
@@ -161,6 +173,175 @@
         }
       });
     }
+  }
+
+  // ---------- account + save sync (Supabase auth) ----------
+  // Signed-out: saves live only in this browser (localStorage above).
+  // Signed-in (Google): saves round-trip to event_saves so they appear in the
+  // phone app and vice-versa. RLS scopes every row to auth.uid() = user_id.
+  var sbClient = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SB_URL, KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' }
+      })
+    : null;
+  var authUser = null;     // the signed-in (permanent) user, or null
+
+  // event_saves.device_id is NOT NULL; the app keys it to a per-install id, so
+  // the web mints its own stable one. RLS keys rows to user_id, not this.
+  var DEVICE_ID = (function () {
+    var k = 'hapsWebDeviceId', v = null;
+    try { v = localStorage.getItem(k); } catch (e) { /* private mode */ }
+    if (!v) {
+      v = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+      try { localStorage.setItem(k, v); } catch (e) { /* private mode */ }
+    }
+    return v;
+  })();
+
+  function startSignIn() {
+    if (!sbClient) { toast('Sign-in unavailable'); return; }
+    // Land back on the same page (drop transient query/hash — the OAuth code
+    // comes back as ?code= and we strip it after the exchange).
+    sbClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin + location.pathname }
+    });
+  }
+  function signOut() {
+    closeAuthMenu();
+    // 'local' scope only ends THIS browser's session — never revokes the
+    // user's phone-app session.
+    if (sbClient) sbClient.auth.signOut({ scope: 'local' });
+  }
+  function cleanAuthUrl() {
+    if (/[?&](code|state|error|error_description)=/.test(location.search)) {
+      history.replaceState(null, '', location.pathname + location.hash);
+    }
+  }
+
+  // Push/remove one save on the server, reverting the optimistic local change
+  // if the write fails.
+  function serverSave(id, on, title) {
+    if (!sbClient || !authUser) return;
+    var q = on
+      ? sbClient.from('event_saves').upsert(
+          { user_id: authUser.id, event_id: id, device_id: DEVICE_ID },
+          { onConflict: 'user_id,event_id', ignoreDuplicates: true })
+      : sbClient.from('event_saves').delete().eq('user_id', authUser.id).eq('event_id', id);
+    Promise.resolve(q).then(function (res) {
+      if (res && res.error) revertSave(id, on, title);
+    }, function () { revertSave(id, on, title); });
+  }
+  function revertSave(id, attemptedOn, title) {
+    setSaveLocal(id, !attemptedOn, title);   // undo the optimistic toggle
+    if (state.savedView) renderGrid();
+    toast('Couldn’t sync — check your connection');
+  }
+
+  // On sign-in: two-way merge. Pull the account's saves down into this browser,
+  // and push any browser-only saves up. Idempotent, so safe to run each load.
+  function syncSavesOnSignIn() {
+    if (!sbClient || !authUser) return;
+    Promise.resolve(
+      sbClient.from('event_saves').select('event_id').not('event_id', 'is', null)
+    ).then(function (res) {
+      if (!res || res.error) return;            // soft-fail: keep local saves
+      var server = {};
+      (res.data || []).forEach(function (row) { if (row.event_id) server[row.event_id] = true; });
+      var localOnly = savedIds().filter(function (id) { return !server[id]; });
+      var changed = false;
+      Object.keys(server).forEach(function (id) {
+        if (!saves[id]) { saves[id] = { t: Date.now(), title: '' }; changed = true; }
+      });
+      if (changed) {
+        persistSaves(); refreshSaveUi();
+        if (state.savedView) loadSaved();
+      }
+      if (localOnly.length) {
+        var rows = localOnly.map(function (id) {
+          return { user_id: authUser.id, event_id: id, device_id: DEVICE_ID };
+        });
+        Promise.resolve(
+          sbClient.from('event_saves').upsert(rows, { onConflict: 'user_id,event_id', ignoreDuplicates: true })
+        ).catch(function () { /* best-effort */ });
+      }
+    });
+  }
+
+  // ---- account UI (topbar button + popover) ----
+  function toggleAuthMenu() {
+    var open = els.authMenu.hidden;
+    els.authMenu.hidden = !open;
+    els.authBtn.setAttribute('aria-expanded', String(open));
+  }
+  function closeAuthMenu() {
+    if (!els.authMenu) return;
+    els.authMenu.hidden = true;
+    els.authBtn.setAttribute('aria-expanded', 'false');
+  }
+  function metaStr(u, keys) {
+    var m = u && u.user_metadata;
+    if (!m) return '';
+    for (var i = 0; i < keys.length; i++) { if (m[keys[i]]) return String(m[keys[i]]); }
+    return '';
+  }
+  function renderAuthUi() {
+    if (!els.authWrap) return;
+    if (authUser) {
+      var pic = metaStr(authUser, ['avatar_url', 'picture']);
+      var name = metaStr(authUser, ['full_name', 'name']) || authUser.email || 'Account';
+      els.authIco.style.display = pic ? 'none' : '';
+      els.authAvatar.hidden = !pic;
+      if (pic) els.authAvatar.src = pic; else els.authAvatar.removeAttribute('src');
+      els.authBtn.title = name;
+      els.authName.textContent = name;
+      els.authEmail.textContent = authUser.email || '';
+    } else {
+      els.authIco.style.display = '';
+      els.authAvatar.hidden = true; els.authAvatar.removeAttribute('src');
+      els.authBtn.title = 'Sign in';
+      closeAuthMenu();
+    }
+    updateSavedNote();
+  }
+  function updateSavedNote() {
+    if (!els.savedNote) return;
+    els.savedNote.innerHTML = authUser
+      ? '<strong>Synced to your account.</strong> These saves show up in the Haps app too. <a href="/beta">Get the app →</a>'
+      : '<strong>Your saves live in this browser.</strong> Sign in or get the Haps app to sync them across your devices. <a href="/beta">Get the app →</a>';
+  }
+
+  // A Supabase anonymous user (provider "anonymous") is NOT a real sign-in. The
+  // web never creates one, but guard so a stray anon session isn't shown as
+  // "signed in".
+  function isPermanentUser(u) {
+    return !!u && !(u.app_metadata && u.app_metadata.provider === 'anonymous');
+  }
+  function wireAuth() {
+    if (!sbClient) { if (els.authWrap) els.authWrap.hidden = true; return; }
+    els.authWrap.hidden = false;
+    els.authBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (authUser) toggleAuthMenu(); else startSignIn();
+    });
+    els.signOutBtn.addEventListener('click', signOut);
+    document.addEventListener('click', function (e) {
+      if (!els.authMenu.hidden && !e.target.closest('#authWrap')) closeAuthMenu();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAuthMenu(); });
+
+    sbClient.auth.onAuthStateChange(function (event, session) {
+      var u = session && session.user;
+      var wasSignedIn = !!authUser;
+      authUser = isPermanentUser(u) ? u : null;
+      renderAuthUi();
+      if (authUser && !wasSignedIn) syncSavesOnSignIn();
+      if (event === 'SIGNED_IN') {
+        cleanAuthUrl();
+        if (!wasSignedIn) toast('Signed in 💜 — your saves now sync');
+      }
+    });
   }
 
   // ---------- time windows ----------
@@ -1282,6 +1463,8 @@
   setDateChipUi();
   if (state.q) { els.searchInput.value = state.q; els.searchClear.hidden = false; }
   refreshSaveUi();
+  renderAuthUi();
+  wireAuth();
   if (state.savedView) {
     els.savedBtn.setAttribute('aria-pressed', 'true');
     els.savedNote.hidden = false;
