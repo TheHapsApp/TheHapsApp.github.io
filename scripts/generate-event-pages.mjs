@@ -110,6 +110,47 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+// Sources store HTML in `description`, and entities can survive in any text
+// field. Mirror the app + SPA: decode entities first, then strip tags. esc()
+// still runs last before output, so pages stay injection-safe.
+const NAMED_ENT = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  rsquo: '’', lsquo: '‘', sbquo: '‚',
+  ldquo: '“', rdquo: '”', bdquo: '„',
+  ndash: '–', mdash: '—', hellip: '…',
+  copy: '©', reg: '®', trade: '™',
+  middot: '·', bull: '•', laquo: '«', raquo: '»', deg: '°',
+  eacute: 'é', Eacute: 'É', aacute: 'á', Aacute: 'Á',
+  iacute: 'í', oacute: 'ó', uacute: 'ú',
+  ntilde: 'ñ', Ntilde: 'Ñ', ouml: 'ö', uuml: 'ü',
+  auml: 'ä', agrave: 'à', iexcl: '¡'
+};
+function decodeEntities(s) {
+  if (s == null) return '';
+  s = String(s);
+  if (s.indexOf('&') === -1) return s;
+  return s.replace(/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/g, (m, body) => {
+    if (body[0] === '#') {
+      const code = (body[1] === 'x' || body[1] === 'X')
+        ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      if (Number.isFinite(code) && code >= 1 && code <= 0x10FFFF) {
+        try { return String.fromCodePoint(code); } catch { return m; }
+      }
+      return m;
+    }
+    return Object.prototype.hasOwnProperty.call(NAMED_ENT, body) ? NAMED_ENT[body] : m;
+  });
+}
+// Strip HTML tags, mapping <br>/<p> to line breaks. Entities must be decoded
+// first so "&lt;p&gt;" has become a real tag this can act on.
+function stripTags(s) {
+  return String(s == null ? '' : s)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?p\b[^>]*>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 function safeUrl(u) {
   if (typeof u !== 'string') return '';
   u = u.trim();
@@ -224,8 +265,15 @@ async function fetchAll() {
 }
 
 // ---------- event model ----------
+const DECODE_FIELDS = ['title', 'one_line_summary', 'description', 'venue', 'address', 'city'];
 function toItem(r) {
   if (!r.id || !r.title || !r.start_time) return null;
+  // Decode entities once on the shared row object (mirrors the app's
+  // Event.fromX) so every downstream esc() renders clean text. The long
+  // description additionally gets tag-stripped where it's emitted.
+  for (const f of DECODE_FIELDS) {
+    if (typeof r[f] === 'string') r[f] = decodeEntities(r[f]);
+  }
   const tz = tzFor(r.state);
   const start = new Date(r.start_time);
   const end = r.end_time ? new Date(r.end_time) : null;
@@ -264,7 +312,7 @@ function dateLine(it) {
 
 function metaDescription(it) {
   const r = it.r;
-  let base = (r.one_line_summary || r.description || '').replace(/\s+/g, ' ').trim();
+  let base = stripTags(r.one_line_summary || r.description || '').replace(/\s+/g, ' ').trim();
   if (!base) {
     base = `${r.title} at ${r.venue || r.city || 'a venue near you'} on ` +
       fmt(it.start, it.tz, { month: 'long', day: 'numeric' }) + '. Find local events on Haps.';
@@ -284,7 +332,7 @@ function jsonLd(it, group, canonical) {
     url: canonical
   };
   if (it.end) ld.endDate = isoLocal(it.end, it.tz);
-  const desc = (r.one_line_summary || r.description || '').replace(/\s+/g, ' ').trim();
+  const desc = stripTags(r.one_line_summary || r.description || '').replace(/\s+/g, ' ').trim();
   if (desc) ld.description = desc.slice(0, 500);
   const img = safeUrl(r.image_url);
   if (img) ld.image = [img];
@@ -387,8 +435,9 @@ function pageHtml(it, group) {
       (group.items.length > 16 ? '<span class="pill">+ more in the app</span>' : '') + '</div></section>';
   }
 
-  const descHtml = (r.description || '').trim()
-    ? '<section class="desc">' + r.description.trim().split(/\n{2,}/).slice(0, 12)
+  const descText = stripTags(r.description || '');   // entities decoded in toItem; drop HTML tags
+  const descHtml = descText
+    ? '<section class="desc">' + descText.split(/\n{2,}/).slice(0, 12)
         .map(par => `<p>${esc(par).replace(/\n/g, '<br>')}</p>`).join('') + '</section>'
     : '';
 

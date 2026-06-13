@@ -102,6 +102,50 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  // Sources store HTML in `description`, and entities can survive in any text
+  // field (the pipeline's sanitize-text decodes but never strips tags). Mirror
+  // the app (HtmlEntities.kt + DetailScreen.cleanDescription): decode entities
+  // first, then strip tags. esc() still runs last on the result before it hits
+  // innerHTML, so output stays injection-safe.
+  var NAMED_ENT = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+    rsquo: '’', lsquo: '‘', sbquo: '‚',
+    ldquo: '“', rdquo: '”', bdquo: '„',
+    ndash: '–', mdash: '—', hellip: '…',
+    copy: '©', reg: '®', trade: '™',
+    middot: '·', bull: '•', laquo: '«', raquo: '»', deg: '°',
+    eacute: 'é', Eacute: 'É', aacute: 'á', Aacute: 'Á',
+    iacute: 'í', oacute: 'ó', uacute: 'ú',
+    ntilde: 'ñ', Ntilde: 'Ñ', ouml: 'ö', uuml: 'ü',
+    auml: 'ä', agrave: 'à', iexcl: '¡'
+  };
+  function decodeEntities(s) {
+    if (s == null) return '';
+    s = String(s);
+    if (s.indexOf('&') === -1) return s;
+    return s.replace(/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/g, function (m, body) {
+      if (body.charAt(0) === '#') {
+        var code = (body.charAt(1) === 'x' || body.charAt(1) === 'X')
+          ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+        if (isFinite(code) && code >= 1 && code <= 0x10FFFF) {
+          try { return String.fromCodePoint(code); } catch (e) { return m; }
+        }
+        return m;
+      }
+      return Object.prototype.hasOwnProperty.call(NAMED_ENT, body) ? NAMED_ENT[body] : m;
+    });
+  }
+  // Strip HTML tags, mapping <br>/<p> to line breaks so paragraph splitting
+  // still works. Entities must be decoded first so "&lt;p&gt;" has become a
+  // real tag this can act on.
+  function stripTags(s) {
+    return String(s == null ? '' : s)
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/?p\b[^>]*>/gi, '\n\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
   function safeUrl(u) {
     if (typeof u !== 'string') return '';
     u = u.trim();
@@ -678,9 +722,23 @@
 
   // ---------- data loading ----------
   var loadToken = 0;
+  // Decode entities once on entry (mirrors the app's Event.fromX) so every
+  // downstream esc() renders clean text. Tag-stripping for the long
+  // description happens at render time in detailHtml().
+  var DECODE_FIELDS = ['title', 'one_line_summary', 'description', 'venue', 'address', 'city'];
+  function decodeRowFields(r) {
+    for (var i = 0; i < DECODE_FIELDS.length; i++) {
+      var f = DECODE_FIELDS[i];
+      if (typeof r[f] === 'string') r[f] = decodeEntities(r[f]);
+    }
+    return r;
+  }
   function mergeRows(rows) {
     rows.forEach(function (r) {
-      if (r && r.id && !state.rowIds[r.id]) { state.rowIds[r.id] = true; state.rows.push(r); }
+      if (r && r.id && !state.rowIds[r.id]) {
+        decodeRowFields(r);
+        state.rowIds[r.id] = true; state.rows.push(r);
+      }
     });
   }
   function visibleCount() {
@@ -843,7 +901,7 @@
     }
 
     var descHtml = '';
-    var desc = (r.description || '').trim();
+    var desc = stripTags(r.description || '');   // entities decoded in mergeRows; drop HTML tags
     if (desc) {
       descHtml = '<div class="dt-desc">' + desc.split(/\n{2,}/).slice(0, 12).map(function (par) {
         return '<p>' + esc(par).replace(/\n/g, '<br>') + '</p>';
@@ -919,7 +977,7 @@
       select: SELECT, id: 'eq.' + id, is_hidden: 'eq.false', limit: '1'
     }).toString())
       .then(function (rows) {
-        if (rows.length) openDetail({ rep: toItem(rows[0]), others: [], dayCount: 1 }, false);
+        if (rows.length) openDetail({ rep: toItem(decodeRowFields(rows[0])), others: [], dayCount: 1 }, false);
         else toast('That event is no longer available');
       })
       .catch(function () { toast('Couldn\'t load that event'); });
