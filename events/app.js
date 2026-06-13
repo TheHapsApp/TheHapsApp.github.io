@@ -93,7 +93,7 @@
    'panelLoc', 'panelTime', 'panelFilters', 'filtersClear',
    'dateChip', 'calDialog', 'calTitle', 'calPrev', 'calNext', 'calDow', 'calGrid', 'calClear',
    'imgDialog', 'imgFull',
-   'authWrap', 'authBtn', 'authIco', 'authAvatar', 'authMenu', 'authName', 'authEmail', 'signOutBtn']
+   'authWrap', 'authBtn', 'authLabel', 'authAvatar', 'authMenu', 'authName', 'authEmail', 'signOutBtn']
     .forEach(function (id) { els[id] = document.getElementById(id); });
 
   // ---------- tiny utils ----------
@@ -335,15 +335,19 @@
     if (authUser) {
       var pic = metaStr(authUser, ['avatar_url', 'picture']);
       var name = metaStr(authUser, ['full_name', 'name']) || authUser.email || 'Account';
-      els.authIco.style.display = pic ? 'none' : '';
-      els.authAvatar.hidden = !pic;
-      if (pic) els.authAvatar.src = pic; else els.authAvatar.removeAttribute('src');
+      if (pic) {                                   // small avatar
+        els.authAvatar.src = pic; els.authAvatar.hidden = false;
+        els.authLabel.hidden = true;
+      } else {                                     // no Google photo → first name as text
+        els.authAvatar.hidden = true; els.authAvatar.removeAttribute('src');
+        els.authLabel.hidden = false; els.authLabel.textContent = name.split(' ')[0];
+      }
       els.authBtn.title = name;
       els.authName.textContent = name;
       els.authEmail.textContent = authUser.email || '';
     } else {
-      els.authIco.style.display = '';
       els.authAvatar.hidden = true; els.authAvatar.removeAttribute('src');
+      els.authLabel.hidden = false; els.authLabel.textContent = 'Sign in';
       els.authBtn.title = 'Sign in';
       closeAuthMenu();
     }
