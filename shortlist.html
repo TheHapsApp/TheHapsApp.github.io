@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A Haps Weekend Plan</title>
+<meta name="description" content="A shortlist of events someone picked on Haps — see the plan and make your own.">
+
+<!-- Smart App Banner (iOS Safari). app-argument is upgraded to the live shortlist URL at runtime. -->
+<meta name="apple-itunes-app" content="app-id=6775696204">
+
+<!-- Rich link unfurl for group chats. NOTE: GitHub Pages is static, so these are GENERIC
+     (the title/image cannot vary per shortlist without a prerender layer — see deploy notes). -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Haps">
+<meta property="og:title" content="Check out this weekend plan on Haps">
+<meta property="og:description" content="A friend shortlisted a few events. Tap to see the plan — and build your own on Haps.">
+<meta property="og:image" content="https://thehaps.app/assets/og.png">
+<meta property="og:url" content="https://thehaps.app/shortlist.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#6d28d9">
+
+<link rel="icon" href="https://thehaps.app/favicon.ico">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{
+    --violet:#6d28d9; --violet-2:#9333ea; --fuchsia:#c026d3;
+    --ink:#1b1430; --body:#2c2640; --muted:#6b6580; --line:#e9e4f2;
+    --bg:#faf8ff; --card:#fff;
+    --shadow:0 2px 10px rgba(27,20,48,.07); --shadow-lift:0 10px 28px rgba(27,20,48,.16);
+    --radius:18px; --maxw:1180px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    color:var(--body); background:var(--bg);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    /* leave room so the sticky banner never covers the last card */
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  /* ---- Header ---- */
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 1rem}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:1rem; max-width:var(--maxw); margin:0 auto;
+  }
+  .brand{display:flex; align-items:center; gap:.5rem; font-weight:800; color:var(--ink); text-decoration:none; font-size:1.15rem}
+  .brand .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--violet),var(--fuchsia));display:inline-block}
+  .share-btn{
+    border:1px solid var(--line); background:#fff; color:var(--violet); font-weight:700;
+    border-radius:999px; padding:.5rem 1rem; cursor:pointer; font-size:.9rem;
+    display:inline-flex; align-items:center; gap:.4rem;
+  }
+  .share-btn:hover{background:#f3edff}
+
+  .hero{max-width:var(--maxw); margin:0 auto; padding:.5rem 1rem 1.2rem}
+  .hero .eyebrow{color:var(--violet); font-weight:800; letter-spacing:.06em; text-transform:uppercase; font-size:.72rem}
+  .hero h1{margin:.25rem 0 .35rem; color:var(--ink); font-size:clamp(1.5rem,4vw,2.1rem); line-height:1.15}
+  .hero .meta{color:var(--muted); font-size:.9rem}
+
+  /* ---- Grid (mirrors events.css) ---- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:1rem; padding:0 1rem 2rem; max-width:var(--maxw); margin:0 auto}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden; cursor:pointer; box-shadow:var(--shadow); text-decoration:none; color:inherit;
+    transition:transform .14s ease, box-shadow .14s ease; display:flex; flex-direction:column; position:relative;
+  }
+  .card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lift)}
+  .card:focus-visible{outline:2px solid var(--violet); outline-offset:2px}
+  .card-media{position:relative; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--g1,#7c3aed),var(--g2,#c026d3))}
+  .card-media img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+  .fallback-emoji{font-size:2.6rem; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+  .date-badge{position:absolute; top:.6rem; left:.6rem; z-index:2; background:rgba(255,255,255,.96); color:var(--ink);
+    border-radius:10px; padding:.28rem .55rem; text-align:center; line-height:1.05; font-weight:800; font-size:.68rem;
+    letter-spacing:.04em; text-transform:uppercase; box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .date-badge .dnum{display:block; font-size:1.05rem}
+  .flag-badge{position:absolute; top:.6rem; right:.6rem; z-index:2; background:rgba(255,255,255,.96); color:#15803d;
+    border-radius:999px; padding:.2rem .55rem; font-size:.68rem; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .card-body{padding:.8rem .9rem .95rem; display:flex; flex-direction:column; gap:.3rem; flex:1}
+  .card-when{color:var(--violet); font-weight:700; font-size:.8rem}
+  .card-title{margin:0; color:var(--ink); font-size:1.02rem; line-height:1.3; font-weight:700;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .card-venue{color:var(--muted); font-size:.85rem; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
+  .card-tags{display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.15rem}
+  .tag{font-size:.72rem; font-weight:700; color:var(--violet); background:#f3edff; border-radius:999px; padding:.18rem .55rem}
+
+  /* ---- States ---- */
+  .state{max-width:560px; margin:4rem auto; text-align:center; padding:0 1.5rem}
+  .state h2{color:var(--ink); margin:.2rem 0 .5rem}
+  .state p{color:var(--muted)}
+  .state a{color:var(--violet); font-weight:700}
+  .skeleton .card-media{background:linear-gradient(110deg,#efeaf8 8%,#f7f4fd 18%,#efeaf8 33%); background-size:200% 100%; animation:sk 1.2s linear infinite}
+  @keyframes sk{to{background-position:-200% 0}}
+
+  .make-own{max-width:var(--maxw); margin:0 auto 6.5rem; padding:0 1rem; text-align:center}
+  .make-own a{display:inline-block; background:#fff; border:1px solid var(--line); color:var(--violet); font-weight:700;
+    border-radius:999px; padding:.8rem 1.6rem; text-decoration:none}
+  .make-own a:hover{background:#f3edff}
+
+  /* ---- Sticky conversion banner ---- */
+  .cta{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    background:linear-gradient(135deg,var(--violet),var(--violet-2));
+    color:#fff; box-shadow:0 -6px 24px rgba(27,20,48,.22);
+    padding:.85rem 1rem calc(.85rem + env(safe-area-inset-bottom));
+  }
+  .cta-inner{max-width:var(--maxw); margin:0 auto; display:flex; align-items:center; gap:1rem; justify-content:center; flex-wrap:wrap}
+  .cta-text{font-weight:600; font-size:.95rem; line-height:1.3; max-width:42rem}
+  .cta-btn{flex:none; background:#fff; color:var(--violet); font-weight:800; text-decoration:none;
+    border-radius:999px; padding:.6rem 1.3rem; white-space:nowrap}
+  .cta-btn:hover{background:#f3edff}
+  .cta-close{position:absolute; top:.4rem; right:.6rem; background:transparent; border:0; color:rgba(255,255,255,.85);
+    font-size:1.2rem; cursor:pointer; line-height:1}
+  @media (max-width:560px){ .cta-text{font-size:.86rem} }
+</style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <a class="brand" href="https://thehaps.app/"><span class="dot"></span> Haps</a>
+      <button id="shareBtn" class="share-btn" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        Share
+      </button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- loading skeleton injected here -->
+    <section class="hero">
+      <div class="eyebrow">Weekend plan</div>
+      <h1 id="title">Loading plan…</h1>
+      <div class="meta" id="meta"></div>
+    </section>
+    <section class="grid skeleton" id="grid" aria-busy="true"></section>
+  </main>
+
+  <div class="make-own">
+    <a href="https://thehaps.app/">＋ Make your own plan on Haps</a>
+  </div>
+
+  <!-- High-conversion floating sticky banner -->
+  <div class="cta" id="ctaBanner">
+    <button class="cta-close" id="ctaClose" aria-label="Dismiss">×</button>
+    <div class="cta-inner">
+      <div class="cta-text">Planning a weekend with friends? Download Haps on iOS to sync your calendars and vote on plans.</div>
+      <a class="cta-btn" id="ctaBtn" href="https://apps.apple.com/app/id6775696204">Get Haps — Free</a>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Config (mirrors website/events/app.js) ----
+  var SB_URL = 'https://cvcnugkqdgmcntsuplaj.supabase.co';
+  var KEY = 'sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz';
+  var APP_STORE = 'https://apps.apple.com/app/id6775696204';
+  var sb = window.supabase.createClient(SB_URL, KEY, { auth: { persistSession: false } });
+
+  // Event columns to fetch for each card (subset of the web feed SELECT).
+  var EVENT_FIELDS =
+    'id,title,one_line_summary,start_time,end_time,venue,address,city,state,' +
+    'image_url,is_free,is_hidden,merged_into,' +
+    'event_category_map(is_primary,event_categories(name,slug))';
+
+  // ---- Category cosmetics (compact; swap for app.js CATS for exact parity) ----
+  var CATS = {
+    music:{e:'🎵',g:['#7c3aed','#c026d3']}, concert:{e:'🎵',g:['#7c3aed','#c026d3']},
+    arts:{e:'🎨',g:['#db2777','#f59e0b']}, theater:{e:'🎭',g:['#9333ea','#db2777']},
+    comedy:{e:'😂',g:['#f59e0b','#ef4444']}, food:{e:'🍴',g:['#ea580c','#f59e0b']},
+    drinks:{e:'🍸',g:['#7c3aed','#2563eb']}, nightlife:{e:'🌙',g:['#4338ca','#9333ea']},
+    family:{e:'👨‍👩‍👧','g':['#0ea5e9','#22c55e']}, kids:{e:'🧒',g:['#0ea5e9','#22c55e']},
+    sports:{e:'🏆',g:['#16a34a','#0ea5e9']}, outdoors:{e:'⛰️',g:['#16a34a','#0d9488']},
+    festival:{e:'🎪',g:['#db2777','#7c3aed']}, community:{e:'🤝',g:['#0d9488','#6d28d9']},
+    education:{e:'📚',g:['#2563eb','#7c3aed']}, film:{e:'🎬',g:['#1f2937','#7c3aed']}
+  };
+  var DEFAULT_CAT = {e:'🎉',g:['#7c3aed','#c026d3']};
+
+  // ---- Text helpers (ported verbatim from website/events/app.js) ----
+  var NAMED_ENT = {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',rsquo:'’',lsquo:'‘',
+    ldquo:'“',rdquo:'”',ndash:'–',mdash:'—',hellip:'…',copy:'©',reg:'®',
+    trade:'™',middot:'·',bull:'•',deg:'°',eacute:'é',Eacute:'É',aacute:'á',
+    iacute:'í',oacute:'ó',uacute:'ú',ntilde:'ñ',ouml:'ö',uuml:'ü',auml:'ä'};
+  function decodeEntities(s){
+    if(s==null) return ''; s=String(s); if(s.indexOf('&')===-1) return s;
+    return s.replace(/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/g,function(m,b){
+      if(b.charAt(0)==='#'){var c=(b.charAt(1)==='x'||b.charAt(1)==='X')?parseInt(b.slice(2),16):parseInt(b.slice(1),10);
+        if(isFinite(c)&&c>=1&&c<=0x10FFFF){try{return String.fromCodePoint(c);}catch(e){return m;}} return m;}
+      return Object.prototype.hasOwnProperty.call(NAMED_ENT,b)?NAMED_ENT[b]:m;});
+  }
+  function stripTags(s){
+    return String(s==null?'':s).replace(/<br\s*\/?>/gi,'\n').replace(/<\/?p\b[^>]*>/gi,'\n\n')
+      .replace(/<[^>]+>/g,'').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  function clean(s){ return stripTags(decodeEntities(s)); }
+  function esc(s){
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ---- Date helpers ----
+  var MON = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  function dateBadge(iso){ if(!iso) return null; var d=new Date(iso); if(isNaN(d)) return null; return {mon:MON[d.getMonth()], day:d.getDate()}; }
+  function whenLabel(iso){
+    if(!iso) return '';
+    var d=new Date(iso); if(isNaN(d)) return '';
+    try{
+      return new Intl.DateTimeFormat('en-US',{weekday:'short',month:'short',day:'numeric'}).format(d)
+        + ' · ' + new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit'}).format(d);
+    }catch(e){ return d.toLocaleString(); }
+  }
+
+  // ---- URL param ----
+  function getId(){
+    var id = new URLSearchParams(location.search).get('id');
+    if(!id) return null;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : null;
+  }
+
+  // ---- Render one card (matches events.css markup) ----
+  function cardHtml(ev){
+    var cat = (ev.event_category_map||[]).filter(function(m){return m.is_primary;})[0]
+           || (ev.event_category_map||[])[0];
+    var slug = cat && cat.event_categories ? cat.event_categories.slug : null;
+    var catName = cat && cat.event_categories ? cat.event_categories.name : null;
+    var look = (slug && CATS[slug]) ? CATS[slug] : DEFAULT_CAT;
+
+    var title = clean(ev.title) || 'Untitled event';
+    var venue = clean(ev.venue) || clean(ev.address) || clean(ev.city) || '';
+    var badge = dateBadge(ev.start_time);
+    var img = ev.image_url
+      ? '<img src="'+esc(ev.image_url)+'" alt="" loading="lazy" onerror="this.remove()">'
+      : '';
+
+    return ''+
+      '<a class="card" href="https://thehaps.app/event/'+esc(ev.id)+'/" aria-label="'+esc(title)+'">'+
+        '<div class="card-media" style="--g1:'+look.g[0]+';--g2:'+look.g[1]+'">'+
+          '<span class="fallback-emoji" aria-hidden="true">'+look.e+'</span>'+
+          img+
+          (badge?'<span class="date-badge">'+badge.mon+'<span class="dnum">'+badge.day+'</span></span>':'')+
+          (ev.is_free?'<span class="flag-badge">Free</span>':'')+
+        '</div>'+
+        '<div class="card-body">'+
+          '<span class="card-when">'+esc(whenLabel(ev.start_time))+'</span>'+
+          '<h3 class="card-title">'+esc(title)+'</h3>'+
+          (venue?'<span class="card-venue">'+esc(venue)+'</span>':'')+
+          (catName?'<div class="card-tags"><span class="tag">'+look.e+' '+esc(catName)+'</span></div>':'')+
+        '</div>'+
+      '</a>';
+  }
+
+  function showState(html){ document.getElementById('app').innerHTML = '<div class="state">'+html+'</div>'; }
+
+  // ---- Boot ----
+  async function load(){
+    var id = getId();
+    if(!id){
+      showState('<h2>This plan link looks broken</h2><p>No valid shortlist id was found. <a href="https://thehaps.app/">Browse events on Haps →</a></p>');
+      return;
+    }
+
+    // Upgrade the iOS smart-banner deep link to this exact plan.
+    var sb_meta = document.querySelector('meta[name="apple-itunes-app"]');
+    if(sb_meta) sb_meta.setAttribute('content', 'app-id=6775696204, app-argument='+location.href);
+
+    var resp = await sb
+      .from('shortlists')
+      .select('id,title,created_at,shortlist_items(position,events('+EVENT_FIELDS+'))')
+      .eq('id', id)
+      .maybeSingle();
+
+    if(resp.error){
+      showState('<h2>Couldn’t load this plan</h2><p>Please try again in a moment. <a href="https://thehaps.app/">Go to Haps →</a></p>');
+      return;
+    }
+    var sl = resp.data;
+    if(!sl){
+      showState('<h2>Plan not found</h2><p>This shortlist may have expired or never existed. <a href="https://thehaps.app/">Discover events on Haps →</a></p>');
+      return;
+    }
+
+    // Flatten + order + drop anything hidden/merged/deleted since creation.
+    var items = (sl.shortlist_items || [])
+      .slice()
+      .sort(function(a,b){ return (a.position||0)-(b.position||0); })
+      .map(function(it){ return it.events; })
+      .filter(function(ev){ return ev && !ev.is_hidden && !ev.merged_into; });
+
+    var title = clean(sl.title) || 'A Haps weekend plan';
+    document.title = title + ' · Haps';
+    document.getElementById('title').textContent = title;
+
+    var when = sl.created_at ? new Date(sl.created_at) : null;
+    var metaBits = [items.length + (items.length===1?' event':' events')];
+    if(when && !isNaN(when)) metaBits.push('curated ' + new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric'}).format(when));
+    document.getElementById('meta').textContent = metaBits.join(' · ');
+
+    var grid = document.getElementById('grid');
+    grid.classList.remove('skeleton');
+    grid.removeAttribute('aria-busy');
+
+    if(!items.length){
+      grid.outerHTML = '<div class="state"><h2>Nothing to show</h2><p>These events are no longer available. <a href="https://thehaps.app/">Find something to do →</a></p></div>';
+    } else {
+      grid.innerHTML = items.map(cardHtml).join('');
+    }
+
+    setupShare(title);
+  }
+
+  // ---- Re-share (keeps the loop going) ----
+  function setupShare(title){
+    var btn = document.getElementById('shareBtn');
+    btn.hidden = false;
+    btn.addEventListener('click', async function(){
+      var url = location.href;
+      var text = title + ' — my weekend plan on Haps';
+      if(navigator.share){
+        try { await navigator.share({ title: 'Haps weekend plan', text: text, url: url }); return; }
+        catch(e){ if(e && e.name==='AbortError') return; }
+      }
+      try { await navigator.clipboard.writeText(url); flash(btn, 'Link copied!'); }
+      catch(e){ window.prompt('Copy your plan link:', url); }
+    });
+  }
+  function flash(el, msg){ var o=el.innerHTML; el.textContent=msg; setTimeout(function(){ el.innerHTML=o; }, 1600); }
+
+  // ---- Sticky banner: Android → Play, dismiss with memory ----
+  (function(){
+    if(/Android/i.test(navigator.userAgent)){
+      var b=document.getElementById('ctaBtn');
+      b.textContent='Get Haps — Free';
+      b.href='https://play.google.com/store/apps/details?id=org.rustdev.haps';
+    }
+    var banner=document.getElementById('ctaBanner');
+    try{ if(sessionStorage.getItem('haps_cta_dismissed')) banner.style.display='none'; }catch(e){}
+    document.getElementById('ctaClose').addEventListener('click', function(){
+      banner.style.display='none';
+      try{ sessionStorage.setItem('haps_cta_dismissed','1'); }catch(e){}
+    });
+  })();
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -753,6 +753,7 @@
     // In the saved view the rendered set IS the upcoming-saves set — use it as
     // the source of truth for the badge (self-corrects any optimistic drift).
     if (state.savedView && !state.loading) { state.savedUpcoming = gs.length; renderSavedBadge(); }
+    paintPlan();   // re-apply group-shortlist selection after the grid re-renders
   }
   function renderMeta(n) {
     var where = state.citySlug === 'geo' ? 'near you' : 'near ' + state.cityName;
@@ -1491,7 +1492,13 @@
     }
     var card = e.target.closest('.card[data-id]');
     if (card) {
-      var grp = findItem(card.getAttribute('data-id'));
+      var cid = card.getAttribute('data-id');
+      if (planMode) {                                   // plan mode: tap toggles selection
+        var pg = findItem(cid);
+        togglePick(cid, pg ? pg.rep.r.title : '');
+        return;
+      }
+      var grp = findItem(cid);
       if (grp) openDetail(grp);
     }
   });
@@ -1500,7 +1507,13 @@
     var card = e.target.closest('.card[data-id]');
     if (card) {
       e.preventDefault();
-      var grp = findItem(card.getAttribute('data-id'));
+      var kid = card.getAttribute('data-id');
+      if (planMode) {
+        var kg = findItem(kid);
+        togglePick(kid, kg ? kg.rep.r.title : '');
+        return;
+      }
+      var grp = findItem(kid);
       if (grp) openDetail(grp);
     }
   });
@@ -1574,6 +1587,156 @@
   }
   window.addEventListener('resize', setTopbarVar);
   setTopbarVar();
+
+  // ---------- group shortlists ----------
+  // Pick a few events, then share ONE link to a group chat. Selection is by
+  // event id and survives filtering/paging. Creation goes through the
+  // create_shortlist RPC (atomic + server-validated; see migration 0053).
+  // Viewer page: /shortlist.html. This whole block is self-contained — it
+  // injects its own toggle button, floating bar, and styles.
+  var SHORTLIST_MAX = 12;          // mirrors the RPC's server-side cap
+  var planMode = false;
+  var plan = [];                   // ordered [{id, title}] — pick order is kept
+  var planBusy = false;
+  var planToggle, planBar, planCountEl, planShareBtn, planClearBtn;
+
+  function planIndexOf(id) {
+    for (var i = 0; i < plan.length; i++) if (plan[i].id === id) return i;
+    return -1;
+  }
+  function togglePick(id, title) {
+    var i = planIndexOf(id);
+    if (i >= 0) plan.splice(i, 1);
+    else if (plan.length >= SHORTLIST_MAX) { toast('You can add up to ' + SHORTLIST_MAX + ' events'); return; }
+    else plan.push({ id: id, title: (title || '').slice(0, 120) });
+    paintPlan();
+    renderPlanBar();
+  }
+  function clearPlan() { plan = []; paintPlan(); renderPlanBar(); }
+
+  // Mark picked cards (violet ring + order number). Must re-run after every
+  // renderGrid since the grid's innerHTML is replaced wholesale.
+  function paintPlan() {
+    if (!els.grid) return;
+    els.grid.querySelectorAll('.card[data-id]').forEach(function (card) {
+      var idx = planIndexOf(card.getAttribute('data-id'));
+      var picked = planMode && idx >= 0;
+      card.classList.toggle('is-picked', picked);
+      var pill = card.querySelector('.pick-pill');
+      if (picked) {
+        if (!pill) {
+          pill = document.createElement('span');
+          pill.className = 'pick-pill';
+          (card.querySelector('.card-media') || card).appendChild(pill);
+        }
+        pill.textContent = String(idx + 1);
+      } else if (pill) { pill.remove(); }
+    });
+  }
+
+  function setPlanMode(on) {
+    planMode = on;
+    if (on && state.view === 'map') setView('grid');     // need cards to tap
+    if (!on) plan = [];                                   // leaving plan mode clears the picks
+    planToggle.classList.toggle('is-on', on);
+    planToggle.setAttribute('aria-pressed', String(on));
+    document.body.classList.toggle('plan-mode', on);
+    paintPlan();
+    renderPlanBar();
+  }
+
+  function renderPlanBar() {
+    planBar.hidden = !planMode;
+    if (!planMode) return;
+    var n = plan.length;
+    planCountEl.textContent = n ? n + ' selected' : 'Tap events to add them';
+    planShareBtn.disabled = !n || planBusy;
+    planShareBtn.textContent = planBusy ? 'Creating link…' : 'Share plan ↗';
+    planClearBtn.hidden = !n;
+  }
+
+  function sharePlan() {
+    if (planBusy || !plan.length) return;
+    if (!sbClient) { toast('Sharing isn\'t available right now'); return; }
+    planBusy = true; renderPlanBar();
+    var ids = plan.map(function (p) { return p.id; });
+    Promise.resolve(sbClient.rpc('create_shortlist', { p_title: null, p_event_ids: ids }))
+      .then(function (resp) {
+        if (resp.error || !resp.data) throw (resp.error || new Error('no id'));
+        sharePlanLink('https://thehaps.app/shortlist.html?id=' + resp.data);
+      })
+      .catch(function () { toast('Couldn\'t create the link — please try again'); })
+      .then(function () { planBusy = false; renderPlanBar(); });
+  }
+  function sharePlanLink(url) {
+    var text = 'My Haps weekend plan';
+    if (navigator.share) {
+      navigator.share({ title: 'Haps weekend plan', text: text, url: url })
+        .catch(function (e) { if (!(e && e.name === 'AbortError')) copyPlanLink(url); });
+    } else { copyPlanLink(url); }
+  }
+  function copyPlanLink(url) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(
+        function () { toast('Plan link copied 💜 — paste it in your group chat'); },
+        function () { window.prompt('Copy your plan link:', url); }   // eslint-disable-line no-alert
+      );
+    } else { window.prompt('Copy your plan link:', url); }            // eslint-disable-line no-alert
+  }
+
+  // ---- inject styles, the topbar toggle, and the floating action bar ----
+  (function buildPlanUi() {
+    var css =
+      'body.plan-mode .card{cursor:copy}' +
+      '.card.is-picked{outline:3px solid var(--violet);outline-offset:-3px}' +
+      '.pick-pill{position:absolute;bottom:.5rem;left:.5rem;z-index:3;min-width:1.6rem;height:1.6rem;' +
+        'padding:0 .42rem;border-radius:999px;background:linear-gradient(135deg,var(--violet),var(--fuchsia));' +
+        'color:#fff;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,.3)}' +
+      '.plan-toggle{border:1px solid var(--line);background:#fff;color:var(--violet);font-weight:700;' +
+        'border-radius:999px;padding:.42rem .85rem;cursor:pointer;font-size:.85rem;white-space:nowrap}' +
+      '.plan-toggle.is-on{background:var(--violet);color:#fff;border-color:var(--violet)}' +
+      '.plan-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom));' +
+        'z-index:60;display:flex;align-items:center;gap:.7rem;background:var(--ink);color:#fff;border-radius:999px;' +
+        'padding:.5rem .6rem .5rem 1.1rem;box-shadow:0 12px 32px rgba(27,20,48,.34);max-width:calc(100vw - 1.5rem)}' +
+      '.plan-bar .pb-count{font-weight:700;font-size:.9rem;white-space:nowrap}' +
+      '.plan-bar .pb-share{background:linear-gradient(135deg,var(--violet),var(--fuchsia));color:#fff;border:0;' +
+        'font-weight:800;border-radius:999px;padding:.55rem 1.15rem;cursor:pointer;white-space:nowrap}' +
+      '.plan-bar .pb-share:disabled{opacity:.5;cursor:default}' +
+      '.plan-bar .pb-clear{background:transparent;border:0;color:rgba(255,255,255,.72);cursor:pointer;font-size:.85rem}' +
+      '.plan-bar .pb-close{background:transparent;border:0;color:rgba(255,255,255,.72);cursor:pointer;font-size:1.25rem;line-height:1;padding:0 .25rem}';
+    var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+
+    planToggle = document.createElement('button');
+    planToggle.type = 'button';
+    planToggle.className = 'plan-toggle';
+    planToggle.setAttribute('aria-pressed', 'false');
+    planToggle.title = 'Build a shortlist to share with friends';
+    planToggle.textContent = '✓ Plan';
+    if (els.savedBtn && els.savedBtn.parentNode) {       // sit beside the Saved button
+      els.savedBtn.parentNode.insertBefore(planToggle, els.savedBtn.nextSibling);
+    } else {                                             // fallback: float it top-right
+      planToggle.style.cssText = 'position:fixed;top:.7rem;right:.7rem;z-index:40';
+      document.body.appendChild(planToggle);
+    }
+    planToggle.addEventListener('click', function () { setPlanMode(!planMode); });
+
+    planBar = document.createElement('div');
+    planBar.className = 'plan-bar';
+    planBar.hidden = true;
+    planBar.innerHTML =
+      '<span class="pb-count"></span>' +
+      '<button type="button" class="pb-clear" hidden>Clear</button>' +
+      '<button type="button" class="pb-share" disabled>Share plan ↗</button>' +
+      '<button type="button" class="pb-close" aria-label="Exit plan mode">&times;</button>';
+    document.body.appendChild(planBar);
+    planCountEl = planBar.querySelector('.pb-count');
+    planShareBtn = planBar.querySelector('.pb-share');
+    planClearBtn = planBar.querySelector('.pb-clear');
+    planShareBtn.addEventListener('click', sharePlan);
+    planClearBtn.addEventListener('click', clearPlan);
+    planBar.querySelector('.pb-close').addEventListener('click', function () { setPlanMode(false); });
+  })();
 
   // ---------- init ----------
   var initialHash = applyHash();
