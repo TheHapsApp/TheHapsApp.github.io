@@ -35,7 +35,7 @@ const CACHE_MAX_AGE_MS = 24 * 3600e3;
 
 const SELECT = 'id,title,one_line_summary,description,start_time,end_time,venue,address,city,state,' +
   'latitude,longitude,image_url,ticket_url,event_url,link_url,original_url,is_free,price_summary,' +
-  'age_restriction,precision_class,is_long_running,exhibit_id';
+  'age_restriction,precision_class,is_long_running,exhibit_id,updated_at';
 // Category map is fetched separately (see attachCategories) rather than embedded
 // in SELECT — embedding made every offset page recompute the category JSON for
 // all preceding rows, blowing the 3s anon statement_timeout past ~28k events.
@@ -334,6 +334,11 @@ function toItem(r) {
   const tz = tzFor(r.state);
   const start = new Date(r.start_time);
   const end = r.end_time ? new Date(r.end_time) : null;
+  // sitemap <lastmod> signal: the scraper stamps updated_at on every row write
+  // (SCHEMA.md), so it tracks when this event's content actually last changed.
+  // Fall back to start_time for any legacy row missing it.
+  const upd = r.updated_at ? Date.parse(r.updated_at) : NaN;
+  const mtimeMs = Number.isFinite(upd) ? upd : start.getTime();
   const cont = r.precision_class === 'continuous';
   const dropIn = r.precision_class === 'drop_in_window';
   const sp = tzParts(start, tz);
@@ -348,7 +353,7 @@ function toItem(r) {
       if (m.is_primary || !primary) primary = c.slug;
     }
   });
-  return { r, id: r.id, tz, start, end, cont, dropIn, allDay, slugs, primary };
+  return { r, id: r.id, tz, start, end, cont, dropIn, allDay, slugs, primary, mtimeMs };
 }
 
 function dateLine(it) {
@@ -667,6 +672,9 @@ function cityPages(city, items) {
     picked.sort((a, b) => a.o.start - b.o.start);
     return {
       total: picked.length,
+      // Newest event on this landing page → its sitemap <lastmod>. 0 when empty
+      // (sitemapLastmod() then falls back to build time).
+      mtimeMs: picked.length ? Math.max(...picked.map(p => p.o.mtimeMs)) : 0,
       rows: picked.slice(0, cap).map(p => rowHtml(p.o, p.g)),
       urls: picked.slice(0, cap).map(p => `${SITE}/event/${p.o.id}/`)
     };
@@ -680,6 +688,7 @@ function cityPages(city, items) {
   const weekend = pick(o => wkSet.has(localDateStr(o.start, o.tz)));
   pages.push({
     path: `/events/${city.slug}/this-weekend/`,
+    mtimeMs: weekend.mtimeMs,
     html: landingHtml({
       path: `/events/${city.slug}/this-weekend/`, city, crumb: `${crumb} This weekend`,
       headTitle: `Things to Do in ${city.name} This Weekend | Haps`,
@@ -695,6 +704,7 @@ function cityPages(city, items) {
   if (free.total >= CAT_PAGE_MIN_GROUPS) {
     pages.push({
       path: `/events/${city.slug}/free/`,
+      mtimeMs: free.mtimeMs,
       html: landingHtml({
         path: `/events/${city.slug}/free/`, city, crumb: `${crumb} Free`,
         headTitle: `Free Things to Do in ${city.name} | Haps`,
@@ -716,6 +726,7 @@ function cityPages(city, items) {
     catPages.push({ slug, label: CATS[slug][0], emoji: CATS[slug][1], count: picked.total });
     pages.push({
       path: `/events/${city.slug}/${slug}/`,
+      mtimeMs: picked.mtimeMs,
       html: landingHtml({
         path: `/events/${city.slug}/${slug}/`, city, crumb: `${crumb} ${esc(CATS[slug][0])}`,
         headTitle: `${h1.charAt(0).toUpperCase() + h1.slice(1)} | Haps`,
@@ -736,6 +747,7 @@ function cityPages(city, items) {
   });
   pages.unshift({
     path: hubPath,
+    mtimeMs: hub.mtimeMs,
     html: landingHtml({
       path: hubPath, city, crumb: '',
       headTitle: `Things to Do in ${city.name} — Local Events Calendar | Haps`,
@@ -752,17 +764,30 @@ function cityPages(city, items) {
 }
 
 // ---------- sitemap ----------
-function sitemapXml(repIds, landingPaths) {
+/* W3C-datetime (sitemaps.org profile) <lastmod>, UTC at seconds precision.
+ * Capped at build time so a stray future updated_at / clock skew can't emit a
+ * lastmod in the future; falls back to build time when no event timestamp is
+ * known (e.g. an empty landing page). */
+function sitemapLastmod(mtimeMs, buildMs) {
+  const t = Math.min(mtimeMs || buildMs, buildMs);
+  return new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+function sitemapXml(repEntries, landingEntries, buildMs) {
   const lines = ['<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'];
+  // Static pages carry no <lastmod> on purpose: they change rarely, and a fresh
+  // date stamped on every daily build is the always-"now" lastmod crawlers
+  // learn to ignore. Event + landing pages get a real per-page lastmod.
   STATIC_URLS.forEach(([p, freq, pri]) => {
     lines.push(`  <url><loc>${SITE}${p}</loc><changefreq>${freq}</changefreq><priority>${pri}</priority></url>`);
   });
-  landingPaths.forEach(p => {
-    lines.push(`  <url><loc>${SITE}${p}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>`);
+  landingEntries.forEach(({ path: p, mtimeMs }) => {
+    lines.push(`  <url><loc>${SITE}${p}</loc><lastmod>${sitemapLastmod(mtimeMs, buildMs)}</lastmod>` +
+      `<changefreq>daily</changefreq><priority>0.8</priority></url>`);
   });
-  repIds.forEach(id => {
-    lines.push(`  <url><loc>${SITE}/event/${id}/</loc><changefreq>daily</changefreq><priority>0.6</priority></url>`);
+  repEntries.forEach(({ id, mtimeMs }) => {
+    lines.push(`  <url><loc>${SITE}/event/${id}/</loc><lastmod>${sitemapLastmod(mtimeMs, buildMs)}</lastmod>` +
+      `<changefreq>daily</changefreq><priority>0.6</priority></url>`);
   });
   lines.push('</urlset>', '');
   return lines.join('\n');
@@ -780,6 +805,7 @@ async function main() {
   const cachePath = cacheArg > -1 && process.argv[cacheArg + 1]
     ? path.resolve(process.argv[cacheArg + 1]) : null;
   const forceRefresh = process.env.SEO_FORCE_REFRESH === '1';
+  const buildMs = Date.now(); // upper bound for every sitemap <lastmod>
 
   console.log(forceRefresh ? 'Refreshing dataset from Supabase…' : 'Loading dataset…');
   const rows = await loadRows(cachePath, forceRefresh);
@@ -804,23 +830,25 @@ async function main() {
   }
 
   // City / category landing pages under /events/{city}/...
-  const landingPaths = [];
+  const landingEntries = [];
   for (const city of LANDING_CITIES) {
     for (const page of cityPages(city, items)) {
       const dir = path.join(siteDir, page.path.slice(1));
       await mkdir(dir, { recursive: true });
       await writeFile(path.join(dir, 'index.html'), page.html);
-      landingPaths.push(page.path);
+      landingEntries.push({ path: page.path, mtimeMs: page.mtimeMs });
     }
   }
 
-  const repIds = [...groups.values()]
+  // One sitemap entry per collapsed series; its <lastmod> is the newest touch
+  // across the occurrences that share the representative event page.
+  const repEntries = [...groups.values()]
     .filter(g => /^[0-9a-f-]{36}$/i.test(g.rep.id))
-    .map(g => g.rep.id);
-  await writeFile(path.join(siteDir, 'sitemap.xml'), sitemapXml(repIds, landingPaths));
+    .map(g => ({ id: g.rep.id, mtimeMs: Math.max(...g.items.map(it => it.mtimeMs)) }));
+  await writeFile(path.join(siteDir, 'sitemap.xml'), sitemapXml(repEntries, landingEntries, buildMs));
 
   console.log(`Wrote ${written} event pages (${groups.size} collapsed events in sitemap) → ${eventDir}`);
-  console.log(`Wrote ${landingPaths.length} landing pages: ${landingPaths.join(' ')}`);
+  console.log(`Wrote ${landingEntries.length} landing pages: ${landingEntries.map(e => e.path).join(' ')}`);
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
