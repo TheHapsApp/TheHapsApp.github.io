@@ -38,8 +38,28 @@ jobs:
             --exclude='.git' --exclude='.github' --exclude='.wrangler' \
             --exclude='scripts' --exclude='node_modules' \
             ./ /tmp/site/
+      # Reuse the previous run's fetched dataset so pushes don't re-hit Supabase.
+      # Only scheduled/manual runs refresh it (SEO_FORCE_REFRESH below), so the
+      # ~28k-row fetch happens once a day instead of on every push to main —
+      # this is the main lever keeping egress under the free-tier quota.
+      - name: Restore SEO dataset cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/seo-cache
+          key: seo-data-${{ github.run_id }}
+          restore-keys: |
+            seo-data-
       - name: Generate event pages + sitemap
-        run: node scripts/generate-event-pages.mjs --site /tmp/site
+        env:
+          # Force a live fetch on cron + manual runs; reuse cache on pushes.
+          SEO_FORCE_REFRESH: ${{ github.event_name != 'push' && '1' || '0' }}
+        run: node scripts/generate-event-pages.mjs --site /tmp/site --cache /tmp/seo-cache/events.json
+      - name: Save SEO dataset cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/seo-cache
+          key: seo-data-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: /tmp/site

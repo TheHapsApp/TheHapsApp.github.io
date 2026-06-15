@@ -20,7 +20,7 @@
  *   <dir> is a built copy of the site; pages land in <dir>/event/,
  *   sitemap at <dir>/sitemap.xml.
  */
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const SB = 'https://cvcnugkqdgmcntsuplaj.supabase.co/rest/v1';
@@ -29,6 +29,9 @@ const SITE = 'https://thehaps.app';
 const APP_ID = '6775696204';
 const PAGE = 1000;
 const GRACE_MS = 4 * 3600e3;
+// How long a cached dataset (--cache) may be reused before we refetch anyway,
+// even on a push, so the site self-heals if the nightly refresh ever fails.
+const CACHE_MAX_AGE_MS = 24 * 3600e3;
 
 const SELECT = 'id,title,one_line_summary,description,start_time,end_time,venue,address,city,state,' +
   'latitude,longitude,image_url,ticket_url,event_url,link_url,original_url,is_free,price_summary,' +
@@ -290,6 +293,32 @@ async function attachCategories(rows) {
     }
   }
   for (const r of rows) r.event_category_map = byEvent.get(r.id) || [];
+}
+
+/* Returns the upcoming-events dataset, reusing a recent on-disk cache when one
+ * is present so that push-triggered deploys don't re-hit Supabase — every push
+ * was previously re-fetching all ~28k rows. The nightly cron passes
+ * SEO_FORCE_REFRESH=1 to bypass the cache and refresh the data once per day.
+ * Pages are always regenerated from this data, so output stays consistent. */
+async function loadRows(cachePath, forceRefresh) {
+  if (cachePath && !forceRefresh) {
+    try {
+      const cached = JSON.parse(await readFile(cachePath, 'utf8'));
+      const ageMs = Date.now() - (cached.generatedAt || 0);
+      if (Array.isArray(cached.rows) && ageMs >= 0 && ageMs < CACHE_MAX_AGE_MS) {
+        console.log(`Reusing cached dataset: ${cached.rows.length} rows, ` +
+          `${(ageMs / 3600e3).toFixed(1)}h old — skipping Supabase fetch.`);
+        return cached.rows;
+      }
+    } catch { /* missing/unreadable/stale cache → fall through to a live fetch */ }
+  }
+  const rows = await fetchAll();
+  if (cachePath) {
+    await mkdir(path.dirname(cachePath), { recursive: true });
+    await writeFile(cachePath, JSON.stringify({ generatedAt: Date.now(), rows }));
+    console.log(`Cached dataset (${rows.length} rows) → ${cachePath}`);
+  }
+  return rows;
 }
 
 // ---------- event model ----------
@@ -747,9 +776,13 @@ async function main() {
     process.exit(1);
   }
   const siteDir = path.resolve(process.argv[siteArg + 1]);
+  const cacheArg = process.argv.indexOf('--cache');
+  const cachePath = cacheArg > -1 && process.argv[cacheArg + 1]
+    ? path.resolve(process.argv[cacheArg + 1]) : null;
+  const forceRefresh = process.env.SEO_FORCE_REFRESH === '1';
 
-  console.log('Fetching upcoming visible events…');
-  const rows = await fetchAll();
+  console.log(forceRefresh ? 'Refreshing dataset from Supabase…' : 'Loading dataset…');
+  const rows = await loadRows(cachePath, forceRefresh);
   const items = rows.map(toItem).filter(Boolean);
   console.log(`${rows.length} rows → ${items.length} usable`);
 
