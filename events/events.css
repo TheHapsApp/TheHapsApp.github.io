@@ -201,6 +201,13 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
   .brand span, .brand { font-size: 0; }       /* icon-only brand on phones */
   .brand img { height: 30px; width: 30px; }
   .getapp-btn { font-size: .84rem; padding: .45rem .8rem; }
+  /* The topbar has too many controls to also fit a usable search inline, so
+     the brand + action buttons sit on row 1 and the search drops to its own
+     full-width row below — a proper, comfortably tappable target. */
+  .topbar-inner { flex-wrap: wrap; row-gap: .55rem; }
+  .searchbox { order: 5; flex: 1 0 100%; padding: .62rem 1rem; }
+  .searchbox svg { width: 19px; height: 19px; }
+  .searchbox input { font-size: 16px; }       /* 16px prevents iOS focus-zoom */
 }
 
 /* ---- hero band ---- */
