@@ -26,7 +26,16 @@
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/events/events.css?v=7">
+<script>
+// Apply the saved theme before CSS paints, so there's no flash of the default.
+(function () {
+  try {
+    var t = localStorage.getItem('hapsWebTheme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { /* private mode */ }
+})();
+</script>
+<link rel="stylesheet" href="/events/events.css?v=8">
 <script src="/assets/analytics.js"></script>
 </head>
 <body>
@@ -43,6 +52,20 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.8-10-9.3C.4 8.6 2.4 5 6 5c2.2 0 3.6 1.2 6 3.6C14.4 6.2 15.8 5 18 5c3.6 0 5.6 3.6 4 6.7C19.5 16.2 12 21 12 21z"/></svg>
         <span id="savedCount" class="saved-count" hidden>0</span>
       </button>
+      <div class="theme-wrap" id="themeWrap">
+        <button id="themeBtn" class="theme-btn" title="Choose a theme" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.9 1.5-1.9-.3-.9.4-1.6 1.3-1.6H17a4 4 0 0 0 4-4c0-5-4-7.5-9-7.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="11.5" r="1.1" fill="currentColor"/><circle cx="11" cy="8" r="1.1" fill="currentColor"/><circle cx="15.5" cy="9" r="1.1" fill="currentColor"/></svg>
+        </button>
+        <div id="themeMenu" class="theme-menu" role="menu" hidden>
+          <div class="theme-menu-title">Theme</div>
+          <button class="theme-opt" role="menuitemradio" data-theme-val="" style="--sw1:#6d28d9;--sw2:#c026d3"><span class="theme-sw"></span>Classic</button>
+          <button class="theme-opt" role="menuitemradio" data-theme-val="aurora" style="--sw1:#6d5df6;--sw2:#c86dd7"><span class="theme-sw"></span>Aurora</button>
+          <button class="theme-opt" role="menuitemradio" data-theme-val="daylight" style="--sw1:#4f46e5;--sw2:#ff6b4a"><span class="theme-sw"></span>Daylight</button>
+          <button class="theme-opt" role="menuitemradio" data-theme-val="neon" style="--sw1:#0891b2;--sw2:#db2777"><span class="theme-sw"></span>Neon</button>
+          <button class="theme-opt" role="menuitemradio" data-theme-val="sunset" style="--sw1:#ff5e62;--sw2:#ffc371"><span class="theme-sw"></span>Sunset</button>
+          <button class="theme-opt" role="menuitemradio" data-theme-val="mono" style="--sw1:#141414;--sw2:#4a4a4a"><span class="theme-sw"></span>Mono</button>
+        </div>
+      </div>
       <div class="auth-wrap" id="authWrap" hidden>
         <button id="authBtn" class="auth-btn" title="Sign in" aria-haspopup="menu" aria-expanded="false">
           <span id="authLabel" class="auth-label">Sign in</span>
@@ -205,6 +228,6 @@
   </noscript>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/events/app.js?v=16"></script>
+  <script src="/events/app.js?v=17"></script>
 </body>
 </html>

@@ -1766,3 +1766,43 @@
   resetAndLoad();
   if (initialHash.e) openDetailById(initialHash.e);
 })();
+
+/* ---- Theme picker (Settings → "Choose your look" on the app) ---- */
+(function () {
+  var THEME_KEY = 'hapsWebTheme';
+  var btn = document.getElementById('themeBtn');
+  var menu = document.getElementById('themeMenu');
+  var wrap = document.getElementById('themeWrap');
+  if (!btn || !menu) return;
+  var opts = Array.prototype.slice.call(menu.querySelectorAll('.theme-opt'));
+
+  function current() {
+    try { return localStorage.getItem(THEME_KEY) || ''; } catch (e) { return ''; }
+  }
+  function mark(val) {
+    opts.forEach(function (o) {
+      o.setAttribute('aria-checked', o.getAttribute('data-theme-val') === val ? 'true' : 'false');
+    });
+  }
+  function apply(val) {
+    if (val) document.documentElement.setAttribute('data-theme', val);
+    else document.documentElement.removeAttribute('data-theme');
+    try {
+      if (val) localStorage.setItem(THEME_KEY, val);
+      else localStorage.removeItem(THEME_KEY);
+    } catch (e) { /* private mode */ }
+    mark(val);
+  }
+  function open(show) {
+    menu.hidden = !show;
+    btn.setAttribute('aria-expanded', show ? 'true' : 'false');
+  }
+
+  mark(current());
+  btn.addEventListener('click', function (e) { e.stopPropagation(); open(menu.hidden); });
+  opts.forEach(function (o) {
+    o.addEventListener('click', function () { apply(o.getAttribute('data-theme-val')); open(false); });
+  });
+  document.addEventListener('click', function (e) { if (wrap && !wrap.contains(e.target)) open(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') open(false); });
+})();
