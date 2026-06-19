@@ -244,6 +244,38 @@ function nearestCity(lat, lng) {
 }
 
 // ---------- fetch ----------
+const HEADERS = { apikey: KEY, Authorization: 'Bearer ' + KEY };
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+// PostgREST returns transient 5xx (notably 503 PGRST002 "Could not query the
+// database for the schema cache. Retrying.") when the database is briefly
+// overloaded or reloading its schema cache. A single blip used to abort the
+// whole nightly build; retry with exponential backoff so it self-heals.
+async function sbFetchJson(url, label) {
+  const MAX_TRIES = 5;
+  let lastErr;
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    try {
+      const r = await fetch(url, { headers: HEADERS });
+      if (r.ok) return r.json();
+      const body = await r.text();
+      // 4xx (other than 429) are real bugs — fail fast, don't burn retries.
+      if (r.status < 500 && r.status !== 429) {
+        throw new Error(`PostgREST ${r.status}: ${body}`);
+      }
+      lastErr = new Error(`PostgREST ${r.status}: ${body}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (attempt < MAX_TRIES) {
+      const backoff = Math.min(2000 * 2 ** (attempt - 1), 30000) + Math.floor(Math.random() * 500);
+      console.warn(`${label || 'fetch'} attempt ${attempt}/${MAX_TRIES} failed (${lastErr.message}); retrying in ${backoff}ms…`);
+      await sleep(backoff);
+    }
+  }
+  throw lastErr;
+}
+
 async function fetchAll() {
   const floor = new Date(Date.now() - GRACE_MS).toISOString();
   const rows = [];
@@ -260,11 +292,7 @@ async function fetchAll() {
       offset: String(offset)
     });
     p.append('start_time', 'gte.' + floor);
-    const r = await fetch(`${SB}/events?${p}`, {
-      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
-    });
-    if (!r.ok) throw new Error(`PostgREST ${r.status}: ${await r.text()}`);
-    const page = await r.json();
+    const page = await sbFetchJson(`${SB}/events?${p}`, `events offset=${offset}`);
     rows.push(...page);
     if (page.length < PAGE) break;
   }
@@ -283,11 +311,8 @@ async function attachCategories(rows) {
     if (!ids.length) continue;
     const p = new URLSearchParams({ select: ECM_SELECT });
     p.append('event_id', 'in.(' + ids.join(',') + ')');
-    const r = await fetch(`${SB}/event_category_map?${p}`, {
-      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
-    });
-    if (!r.ok) throw new Error(`PostgREST ${r.status}: ${await r.text()}`);
-    for (const m of await r.json()) {
+    const batch = await sbFetchJson(`${SB}/event_category_map?${p}`, `categories batch i=${i}`);
+    for (const m of batch) {
       if (!byEvent.has(m.event_id)) byEvent.set(m.event_id, []);
       byEvent.get(m.event_id).push({ is_primary: m.is_primary, event_categories: m.event_categories });
     }
