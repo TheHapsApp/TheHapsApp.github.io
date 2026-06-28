@@ -19,9 +19,16 @@
   var SEARCH_LIMIT = 300;
   var GRACE_MS = 4 * 3600e3; // feed floor: now - 4h, same as the app
 
+  // Admin-overlay state (logic lives in the "Admin tools" block at the end).
+  // Declared up here so rest()/baseParams()/onAuthStateChange can read them
+  // during init, before the admin block's own statements execute.
+  var adminMode = false, adminToken = null, adminShowHidden = false,
+      mergeSel = [], adminCanonId = null;
+
   var SELECT = 'id,title,one_line_summary,description,start_time,end_time,venue,address,city,state,' +
     'latitude,longitude,image_url,ticket_url,event_url,link_url,original_url,is_free,price_summary,' +
     'age_restriction,is_featured,save_count,precision_class,is_long_running,exhibit_id,series_id,' +
+    'is_hidden,merged_into,source_site,' +
     'vibe_tags,event_category_map(is_primary,event_categories(name,slug))';
 
   // slug, label, emoji, gradient
@@ -445,8 +452,11 @@
       var u = session && session.user;
       var wasSignedIn = !!authUser;
       authUser = isPermanentUser(u) ? u : null;
+      adminToken = (session && session.access_token) || null;   // fresh on TOKEN_REFRESHED
       renderAuthUi();
       if (authUser && !wasSignedIn) syncSavesOnSignIn();
+      if (authUser) detectAdmin();
+      else setAdminMode(false);
       if (event === 'SIGNED_IN') {
         cleanAuthUrl();
         if (!wasSignedIn) toast('Signed in 💜 — your saves now sync');
@@ -488,8 +498,11 @@
 
   // ---------- REST ----------
   function rest(pathAndQuery) {
+    // In admin "show hidden" mode, ride the signed-in admin's JWT so RLS
+    // (admin_read_events) returns hidden/merged rows the anon key can't see.
+    var bearer = (adminShowHidden && adminToken) ? adminToken : KEY;
     return fetch(SB + pathAndQuery, {
-      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
+      headers: { apikey: KEY, Authorization: 'Bearer ' + bearer }
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -503,8 +516,10 @@
   }
   function baseParams(p) {
     p.set('select', SELECT);
-    p.set('merged_into', 'is.null');
-    p.set('is_hidden', 'eq.false');
+    if (!adminShowHidden) {            // admin review mode surfaces hidden + merged rows
+      p.set('merged_into', 'is.null');
+      p.set('is_hidden', 'eq.false');
+    }
     p.set('enrichment_status', 'neq.expanded');
     p.set('order', 'start_time.asc.nullslast');
     p.set('and', bboxParam());
@@ -754,6 +769,7 @@
     // the source of truth for the badge (self-corrects any optimistic drift).
     if (state.savedView && !state.loading) { state.savedUpcoming = gs.length; renderSavedBadge(); }
     paintPlan();   // re-apply group-shortlist selection after the grid re-renders
+    adminAfterRender();   // inject admin affordances + merge-selection rings
   }
   function renderMeta(n) {
     var where = state.citySlug === 'geo' ? 'near you' : 'near ' + state.cityName;
@@ -1481,6 +1497,7 @@
 
   // card clicks (delegated)
   els.grid.addEventListener('click', function (e) {
+    if (adminMode && adminGridClick(e)) return;   // admin ⋯ button / suppressed long-press tap
     var heart = e.target.closest('[data-heart]');
     if (heart) {
       e.stopPropagation();
@@ -1756,6 +1773,7 @@
   refreshSavedCount();
   renderAuthUi();
   wireAuth();
+  initAdmin();
   if (state.savedView) {
     els.savedBtn.setAttribute('aria-pressed', 'true');
     els.savedNote.hidden = false;
@@ -1765,6 +1783,361 @@
   if (state.view === 'map') setView('map');
   resetAndLoad();
   if (initialHash.e) openDetailById(initialHash.e);
+
+  // ============================================================
+  //  Admin tools (overlay) — active only for a signed-in app_admin
+  //  on an admin URL. Every privileged action is re-checked server
+  //  side (is_app_admin in RLS + admin_merge_events), so shipping
+  //  this code on the public site leaks nothing.
+  // ============================================================
+  var isAdmin = false;            // verified via am_i_admin() RPC
+  var adminMenuId = null;         // card the action menu targets
+  var adminEditId = null;         // card being edited
+  var adminSuppressClick = false; // swallow the click that follows a long-press
+  var adminInited = false;
+  var adminToolbar, adminBar, adminBarBody, adminMenu, adminEditDialog,
+      adminEditBody, adminDebugDialog, adminDebugBody, adminHiddenBtn;
+
+  // Arm only on an explicit admin URL so an admin browsing the public
+  // site never sees admin chrome. ?admin=1 sticks it; ?admin=0 clears.
+  function adminArmed() {
+    try {
+      var qs = new URLSearchParams(location.search);
+      if (qs.get('admin') === '1') localStorage.setItem('hapsAdmin', '1');
+      if (qs.get('admin') === '0') localStorage.removeItem('hapsAdmin');
+      return localStorage.getItem('hapsAdmin') === '1';
+    } catch (e) { return /[?&]admin=1/.test(location.search); }
+  }
+
+  function detectAdmin() {
+    if (!sbClient || !authUser || !adminArmed()) { setAdminMode(false); return; }
+    Promise.resolve(sbClient.rpc('am_i_admin')).then(function (res) {
+      isAdmin = !!(res && res.data === true);
+      setAdminMode(isAdmin);
+      if (!isAdmin) toast('Signed in, but this account isn’t an admin');
+    }).catch(function () { setAdminMode(false); });
+  }
+
+  function setAdminMode(on) {
+    adminMode = !!on;
+    document.body.classList.toggle('admin-mode', adminMode);
+    if (!adminMode) { mergeSel = []; adminCanonId = null; adminShowHidden = false; }
+    if (adminToolbar) adminToolbar.hidden = !adminMode;
+    if (adminHiddenBtn) adminHiddenBtn.classList.toggle('is-on', adminShowHidden);
+    closeAdminMenu();
+    renderAdminBar();
+    adminAfterRender();
+  }
+
+  // ---- merge selection ----
+  function mergeIndexOf(id) {
+    for (var i = 0; i < mergeSel.length; i++) if (mergeSel[i].id === id) return i;
+    return -1;
+  }
+  function toggleMerge(id, title) {
+    var i = mergeIndexOf(id);
+    if (i >= 0) {
+      mergeSel.splice(i, 1);
+      if (adminCanonId === id) adminCanonId = mergeSel.length ? mergeSel[0].id : null;
+    } else {
+      mergeSel.push({ id: id, title: (title || '').slice(0, 140) });
+      if (!adminCanonId) adminCanonId = id;
+    }
+    adminAfterRender();
+    renderAdminBar();
+  }
+
+  function renderAdminBar() {
+    if (!adminBar) return;
+    var n = mergeSel.length;
+    adminBar.hidden = !(adminMode && n > 0);
+    if (adminBar.hidden) return;
+    var opts = mergeSel.map(function (m) {
+      return '<option value="' + esc(m.id) + '"' + (m.id === adminCanonId ? ' selected' : '') + '>' +
+        esc((m.title || m.id).slice(0, 60)) + '</option>';
+    }).join('');
+    adminBarBody.innerHTML =
+      '<span class="admin-bar-info"><strong>' + n + '</strong> selected to merge</span>' +
+      '<label class="admin-bar-canon">Keep&nbsp;<select id="adminCanonSel">' + opts + '</select></label>' +
+      '<button class="admin-bar-btn primary" id="adminMergeGo"' + (n < 2 ? ' disabled' : '') + '>Merge ' + n + '</button>' +
+      '<button class="admin-bar-btn" id="adminMergeClear">Clear</button>';
+    document.getElementById('adminCanonSel').addEventListener('change', function (e) {
+      adminCanonId = e.target.value; adminAfterRender();
+    });
+    document.getElementById('adminMergeGo').addEventListener('click', doMerge);
+    document.getElementById('adminMergeClear').addEventListener('click', function () {
+      mergeSel = []; adminCanonId = null; adminAfterRender(); renderAdminBar();
+    });
+  }
+
+  function doMerge() {
+    if (mergeSel.length < 2) return;
+    var canon = adminCanonId || mergeSel[0].id;
+    var dups = mergeSel.map(function (m) { return m.id; }).filter(function (id) { return id !== canon; });
+    var go = document.getElementById('adminMergeGo');
+    if (go) { go.disabled = true; go.textContent = 'Merging…'; }
+    Promise.resolve(sbClient.rpc('admin_merge_events', { p_canonical_id: canon, p_duplicate_ids: dups }))
+      .then(function (res) {
+        if (res.error) throw res.error;
+        var lose = {}; dups.forEach(function (id) { lose[id] = 1; });
+        if (!adminShowHidden) state.rows = state.rows.filter(function (r) { return !lose[r.id]; });
+        else state.rows.forEach(function (r) { if (lose[r.id]) r.merged_into = canon; });
+        mergeSel = []; adminCanonId = null;
+        renderGrid(); renderAdminBar();
+        toast('Merged ' + dups.length + ' duplicate' + (dups.length > 1 ? 's' : '') + ' ✓');
+      })
+      .catch(function (err) { console.error(err); toast('Merge failed: ' + (err.message || err)); renderAdminBar(); });
+  }
+
+  // ---- per-card actions (hide / boost / unmerge / edit) ----
+  function adminUpdate(id, patch, okMsg) {
+    closeAdminMenu();
+    Promise.resolve(sbClient.from('events').update(patch).eq('id', id).select('id'))
+      .then(function (res) {
+        if (res.error) throw res.error;
+        if (!res.data || !res.data.length) throw new Error('no row updated (not admin?)');
+        var row = null;
+        for (var i = 0; i < state.rows.length; i++) { if (state.rows[i].id === id) { row = state.rows[i]; break; } }
+        if (row) Object.keys(patch).forEach(function (k) { row[k] = patch[k]; });
+        if (patch.is_hidden === true && !adminShowHidden) {
+          state.rows = state.rows.filter(function (r) { return r.id !== id; });
+        }
+        renderGrid();
+        toast(okMsg || 'Saved ✓');
+      })
+      .catch(function (err) { console.error(err); toast('Failed: ' + (err.message || err)); });
+  }
+
+  function openAdminMenu(id, anchor) {
+    var g = findItem(id); if (!g) return; var r = g.rep.r;
+    adminMenuId = id;
+    var rows = [
+      ['merge', (mergeIndexOf(id) >= 0 ? '✓ In merge set' : '⤳ Select for merge')],
+      ['hide', r.is_hidden ? '👁 Unhide' : '🙈 Hide'],
+      ['boost', r.is_featured ? '✨ Unboost' : '✨ Boost']
+    ];
+    if (r.merged_into) rows.push(['unmerge', '↩ Unmerge']);
+    rows.push(['edit', '✏️ Edit fields']);
+    rows.push(['debug', '🛈 Debug info']);
+    adminMenu.innerHTML = rows.map(function (it) {
+      return '<button data-act="' + it[0] + '">' + it[1] + '</button>';
+    }).join('');
+    adminMenu.hidden = false;
+    var rect = anchor.getBoundingClientRect();
+    var mw = 210;
+    adminMenu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - mw - 8)) + 'px';
+    adminMenu.style.top = Math.min(rect.bottom + 6, window.innerHeight - 240) + 'px';
+  }
+  function closeAdminMenu() { if (adminMenu) adminMenu.hidden = true; adminMenuId = null; }
+
+  // ---- edit modal ----
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    var d = new Date(iso); if (isNaN(d)) return '';
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function fromLocalInput(v) { if (!v) return null; var d = new Date(v); return isNaN(d) ? undefined : d.toISOString(); }
+  function sameMinute(a, b) {
+    if (!a && !b) return true; if (!a || !b) return false;
+    return Math.floor(new Date(a).getTime() / 60000) === Math.floor(new Date(b).getTime() / 60000);
+  }
+  function openAdminEdit(id) {
+    closeAdminMenu();
+    var g = findItem(id); if (!g) return; var r = g.rep.r; adminEditId = id;
+    adminEditBody.innerHTML =
+      '<label>Title<input id="aeTitle" type="text" value="' + esc(r.title || '') + '"></label>' +
+      '<label>Venue<input id="aeVenue" type="text" value="' + esc(r.venue || '') + '"></label>' +
+      '<label>Address<input id="aeAddr" type="text" value="' + esc(r.address || '') + '"></label>' +
+      '<label>Start<input id="aeStart" type="datetime-local" value="' + esc(toLocalInput(r.start_time)) + '"></label>' +
+      '<label>End<input id="aeEnd" type="datetime-local" value="' + esc(toLocalInput(r.end_time)) + '"></label>' +
+      '<p class="admin-edit-note">Times are in your browser’s timezone.</p>';
+    adminEditDialog.showModal();
+  }
+  function saveAdminEdit() {
+    var id = adminEditId; var g = findItem(id); if (!g) return; var r = g.rep.r;
+    var title = document.getElementById('aeTitle').value.trim();
+    if (!title) { toast('Title required'); return; }
+    var venue = document.getElementById('aeVenue').value.trim();
+    var addr = document.getElementById('aeAddr').value.trim();
+    var startV = document.getElementById('aeStart').value;
+    var endV = document.getElementById('aeEnd').value;
+    var startIso = startV ? fromLocalInput(startV) : null;
+    var endIso = endV ? fromLocalInput(endV) : null;
+    if (startV && !startIso) { toast('Invalid start date'); return; }
+    if (endV && !endIso) { toast('Invalid end date'); return; }
+    if (startIso && endIso && new Date(endIso) < new Date(startIso)) { toast('End is before start'); return; }
+    var patch = {}, timeChanged = false;
+    if (title !== (r.title || '')) patch.title = title;
+    if (venue !== (r.venue || '')) patch.venue = venue || null;
+    if (addr !== (r.address || '')) patch.address = addr || null;
+    if (!sameMinute(startIso, r.start_time)) { patch.start_time = startIso; timeChanged = true; }
+    if (!sameMinute(endIso, r.end_time)) { patch.end_time = endIso; timeChanged = true; }
+    if (timeChanged) patch.enrichment_status = 'admin_corrected'; // defeat preserve-corrected-dates trigger
+    if (!Object.keys(patch).length) { adminEditDialog.close(); toast('No changes'); return; }
+    adminEditDialog.close();
+    adminUpdate(id, patch, 'Saved ✓');
+  }
+
+  // ---- debug panel ----
+  function openAdminDebug(id) {
+    closeAdminMenu();
+    Promise.resolve(sbClient.from('events').select('*').eq('id', id).single()).then(function (res) {
+      if (res.error) throw res.error; var r = res.data;
+      var pick = ['id', 'source_site', 'external_id', 'enrichment_status', 'processing_state', 'is_hidden',
+        'is_featured', 'merged_into', 'incomplete_reason', 'start_time', 'end_time', 'latitude', 'longitude',
+        'event_url', 'ticket_url', 'original_url', 'link_url'];
+      var trs = pick.map(function (k) {
+        var v = r[k]; return '<tr><th>' + esc(k) + '</th><td>' + esc(v == null ? '—' : String(v)) + '</td></tr>';
+      }).join('');
+      adminDebugBody.innerHTML = '<table class="admin-dbg">' + trs + '</table>' +
+        '<details><summary>Full row JSON</summary><pre>' + esc(JSON.stringify(r, null, 2)) + '</pre></details>';
+      adminDebugDialog.showModal();
+    }).catch(function (err) { toast('Debug failed: ' + (err.message || err)); });
+  }
+
+  // ---- per-render injection (runs after every renderGrid) ----
+  function adminAfterRender() {
+    if (!els.grid) return;
+    els.grid.querySelectorAll('.card[data-id]').forEach(function (card) {
+      var id = card.getAttribute('data-id');
+      var dot = card.querySelector('.admin-dot');
+      var media = card.querySelector('.card-media') || card;
+      if (!adminMode) {
+        if (dot) dot.remove();
+        card.classList.remove('admin-pick', 'admin-canon');
+        var p0 = card.querySelector('.admin-pick-pill'); if (p0) p0.remove();
+        var s0 = card.querySelector('.admin-status'); if (s0) s0.remove();
+        return;
+      }
+      if (!dot) {
+        dot = document.createElement('button');
+        dot.className = 'admin-dot';
+        dot.setAttribute('data-admin-btn', id);
+        dot.setAttribute('aria-label', 'Admin actions');
+        dot.innerHTML = '⋯';
+        media.appendChild(dot);
+      }
+      var sel = mergeIndexOf(id);
+      card.classList.toggle('admin-pick', sel >= 0);
+      card.classList.toggle('admin-canon', sel >= 0 && id === adminCanonId);
+      var pill = card.querySelector('.admin-pick-pill');
+      if (sel >= 0) {
+        if (!pill) { pill = document.createElement('span'); pill.className = 'admin-pick-pill'; media.appendChild(pill); }
+        pill.textContent = (id === adminCanonId) ? '★' : String(sel + 1);
+      } else if (pill) pill.remove();
+      var g = findItem(id); var r = g && g.rep.r;
+      var label = r && r.is_hidden ? 'HIDDEN' : (r && r.merged_into ? 'MERGED' : '');
+      var st = card.querySelector('.admin-status');
+      if (label) {
+        if (!st) { st = document.createElement('span'); st.className = 'admin-status'; media.appendChild(st); }
+        st.textContent = label;
+        st.classList.toggle('is-merged', label === 'MERGED');
+      } else if (st) st.remove();
+    });
+  }
+
+  // delegated click on the grid for admin controls; returns true if handled
+  function adminGridClick(e) {
+    var btn = e.target.closest('[data-admin-btn]');
+    if (btn) { e.stopPropagation(); openAdminMenu(btn.getAttribute('data-admin-btn'), btn); return true; }
+    if (adminSuppressClick) { adminSuppressClick = false; return true; }
+    return false;
+  }
+
+  // ---- one-time setup: inject DOM + wire long-press/menus ----
+  function initAdmin() {
+    if (adminInited) return; adminInited = true;
+    adminArmed();   // capture ?admin=1 into localStorage NOW, before any OAuth
+                    // redirect strips the URL param (so it survives sign-in).
+
+    adminToolbar = document.createElement('div');
+    adminToolbar.id = 'adminToolbar'; adminToolbar.hidden = true;
+    adminToolbar.innerHTML = '<span class="admin-tb-tag">🛠 Admin</span>' +
+      '<button class="admin-tb-btn" id="adminHiddenToggle">Show hidden</button>' +
+      '<button class="admin-tb-btn" id="adminExit">Exit</button>';
+    document.body.appendChild(adminToolbar);
+    adminHiddenBtn = document.getElementById('adminHiddenToggle');
+    adminHiddenBtn.addEventListener('click', function () {
+      adminShowHidden = !adminShowHidden;
+      adminHiddenBtn.classList.toggle('is-on', adminShowHidden);
+      toast(adminShowHidden ? 'Showing hidden + merged' : 'Hidden rows back off');
+      resetAndLoad();
+    });
+    document.getElementById('adminExit').addEventListener('click', function () {
+      try { localStorage.removeItem('hapsAdmin'); } catch (e) {}
+      var wasHidden = adminShowHidden;
+      setAdminMode(false);
+      if (wasHidden) resetAndLoad();
+      toast('Admin mode off');
+    });
+
+    adminBar = document.createElement('div');
+    adminBar.id = 'adminBar'; adminBar.hidden = true;
+    adminBarBody = document.createElement('div'); adminBarBody.className = 'admin-bar-body';
+    adminBar.appendChild(adminBarBody);
+    document.body.appendChild(adminBar);
+
+    adminMenu = document.createElement('div');
+    adminMenu.id = 'adminMenu'; adminMenu.hidden = true;
+    document.body.appendChild(adminMenu);
+    adminMenu.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-act]'); if (!b) return;
+      var id = adminMenuId; var g = id && findItem(id); if (!g) { closeAdminMenu(); return; }
+      var r = g.rep.r;
+      switch (b.getAttribute('data-act')) {
+        case 'merge': toggleMerge(id, r.title); closeAdminMenu(); break;
+        case 'hide': adminUpdate(id, { is_hidden: !r.is_hidden }, r.is_hidden ? 'Unhidden ✓' : 'Hidden ✓'); break;
+        case 'boost': adminUpdate(id, { is_featured: !r.is_featured }, r.is_featured ? 'Unboosted ✓' : 'Boosted ✓'); break;
+        case 'unmerge': adminUpdate(id, { merged_into: null }, 'Unmerged ✓'); break;
+        case 'edit': openAdminEdit(id); break;
+        case 'debug': openAdminDebug(id); break;
+      }
+    });
+
+    adminEditDialog = document.createElement('dialog');
+    adminEditDialog.id = 'adminEditDialog'; adminEditDialog.className = 'admin-dialog';
+    adminEditDialog.innerHTML = '<form method="dialog"><h3>Edit event</h3>' +
+      '<div id="adminEditBody"></div>' +
+      '<div class="admin-dialog-actions"><button value="cancel" class="admin-bar-btn">Cancel</button>' +
+      '<button type="button" id="adminEditSave" class="admin-bar-btn primary">Save</button></div></form>';
+    document.body.appendChild(adminEditDialog);
+    adminEditBody = adminEditDialog.querySelector('#adminEditBody');
+    adminEditDialog.querySelector('#adminEditSave').addEventListener('click', saveAdminEdit);
+
+    adminDebugDialog = document.createElement('dialog');
+    adminDebugDialog.id = 'adminDebugDialog'; adminDebugDialog.className = 'admin-dialog';
+    adminDebugDialog.innerHTML = '<form method="dialog"><h3>Debug</h3><div id="adminDebugBody"></div>' +
+      '<div class="admin-dialog-actions"><button value="ok" class="admin-bar-btn primary">Close</button></div></form>';
+    document.body.appendChild(adminDebugDialog);
+    adminDebugBody = adminDebugDialog.querySelector('#adminDebugBody');
+
+    // long-press a card → toggle merge selection (the workflow you described)
+    var lpTimer = null, lpId = null;
+    els.grid.addEventListener('pointerdown', function (e) {
+      if (!adminMode) return;
+      if (e.target.closest('[data-admin-btn],[data-heart]')) return;
+      var card = e.target.closest('.card[data-id]'); if (!card) return;
+      lpId = card.getAttribute('data-id');
+      lpTimer = setTimeout(function () {
+        lpTimer = null; adminSuppressClick = true;
+        var g = findItem(lpId);
+        toggleMerge(lpId, g ? g.rep.r.title : '');
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+      }, 480);
+    });
+    function cancelLp() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }
+    els.grid.addEventListener('pointerup', cancelLp);
+    els.grid.addEventListener('pointermove', cancelLp);
+    els.grid.addEventListener('pointercancel', cancelLp);
+    window.addEventListener('scroll', cancelLp, true);
+
+    document.addEventListener('click', function (e) {
+      if (adminMenu && !adminMenu.hidden && !e.target.closest('#adminMenu,[data-admin-btn]')) closeAdminMenu();
+    });
+
+    detectAdmin();   // in case the session was already restored before init
+  }
 })();
 
 /* ---- Theme picker (Settings → "Choose your look" on the app) ---- */

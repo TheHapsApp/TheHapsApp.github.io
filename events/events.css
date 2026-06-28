@@ -615,3 +615,103 @@ dialog::backdrop { background: rgba(15,10,28,.55); backdrop-filter: blur(2px); }
   * { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }
 }
+
+/* ============================================================
+   Admin overlay — only visible when body.admin-mode is set
+   (a signed-in app_admin on an admin URL). See app.js Admin block.
+   ============================================================ */
+#adminToolbar {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  z-index: 1200; display: flex; align-items: center; gap: 8px;
+  background: #1a1426; color: #fff; padding: 6px 10px; border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.35); font-size: 13px;
+}
+#adminToolbar .admin-tb-tag { font-weight: 700; letter-spacing: .02em; }
+.admin-tb-btn {
+  background: rgba(255,255,255,.14); color: #fff; border: 0; cursor: pointer;
+  padding: 5px 11px; border-radius: 999px; font: inherit; font-size: 12px;
+}
+.admin-tb-btn:hover { background: rgba(255,255,255,.26); }
+.admin-tb-btn.is-on { background: var(--violet); }
+
+/* per-card ⋯ admin button */
+.admin-mode .card-media { position: relative; }
+.admin-dot {
+  position: absolute; top: 8px; left: 8px; z-index: 4;
+  width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(20,16,32,.7); color: #fff; font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.admin-dot:hover { background: rgba(20,16,32,.92); }
+
+/* merge-selection ring + order badge */
+.admin-mode .card.admin-pick { outline: 3px solid var(--violet); outline-offset: -3px; border-radius: 14px; }
+.admin-mode .card.admin-canon { outline-color: #f5b301; }
+.admin-pick-pill {
+  position: absolute; top: 8px; right: 8px; z-index: 4; min-width: 24px; height: 24px;
+  padding: 0 6px; border-radius: 999px; background: var(--violet); color: #fff;
+  font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.admin-canon .admin-pick-pill { background: #f5b301; color: #1a1426; }
+.admin-status {
+  position: absolute; bottom: 8px; left: 8px; z-index: 4;
+  padding: 2px 7px; border-radius: 6px; background: #b91c1c; color: #fff;
+  font-size: 10px; font-weight: 800; letter-spacing: .04em;
+}
+.admin-status.is-merged { background: #6b7280; }
+
+/* bottom merge action bar */
+#adminBar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+  z-index: 1200; max-width: 94vw;
+  background: #1a1426; color: #fff; border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.admin-bar-body { display: flex; align-items: center; gap: 12px; padding: 10px 14px; flex-wrap: wrap; }
+.admin-bar-info strong { font-size: 16px; }
+.admin-bar-canon { font-size: 12px; display: flex; align-items: center; }
+.admin-bar-canon select { max-width: 220px; padding: 4px; border-radius: 6px; border: 0; }
+.admin-bar-btn {
+  background: rgba(255,255,255,.16); color: #fff; border: 0; cursor: pointer;
+  padding: 8px 14px; border-radius: 8px; font: inherit; font-weight: 600;
+}
+.admin-bar-btn:hover { background: rgba(255,255,255,.28); }
+.admin-bar-btn.primary { background: var(--violet); }
+.admin-bar-btn.primary:hover { background: var(--accent-hover); }
+.admin-bar-btn[disabled] { opacity: .45; cursor: default; }
+
+/* per-card action menu popover */
+#adminMenu {
+  position: fixed; z-index: 1300; width: 210px;
+  background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  overflow: hidden; border: 1px solid #eee;
+}
+#adminMenu button {
+  display: block; width: 100%; text-align: left; background: none; border: 0; cursor: pointer;
+  padding: 11px 14px; font: inherit; font-size: 14px; color: #1a1426;
+}
+#adminMenu button:hover { background: var(--accent-soft); }
+
+/* edit / debug dialogs */
+.admin-dialog {
+  border: 0; border-radius: 14px; padding: 0; max-width: 460px; width: 92vw;
+  box-shadow: 0 20px 50px rgba(0,0,0,.35);
+}
+.admin-dialog::backdrop { background: rgba(20,16,32,.5); }
+.admin-dialog form { padding: 18px 20px; }
+.admin-dialog h3 { margin: 0 0 14px; }
+.admin-dialog label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 12px; }
+.admin-dialog input {
+  display: block; width: 100%; margin-top: 4px; padding: 9px 10px;
+  border: 1px solid #ddd; border-radius: 8px; font: inherit; box-sizing: border-box;
+}
+.admin-edit-note { font-size: 11px; color: #888; margin: 0; }
+.admin-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.admin-dialog-actions .admin-bar-btn { color: #1a1426; background: #eee; }
+.admin-dialog-actions .admin-bar-btn:hover { background: #e0e0e0; }
+.admin-dialog-actions .admin-bar-btn.primary { color: #fff; background: var(--violet); }
+.admin-dbg { width: 100%; border-collapse: collapse; font-size: 12px; }
+.admin-dbg th { text-align: left; padding: 4px 8px 4px 0; color: #666; vertical-align: top; white-space: nowrap; }
+.admin-dbg td { padding: 4px 0; word-break: break-all; font-family: ui-monospace, monospace; }
+.admin-dialog pre { background: #f6f6f8; padding: 10px; border-radius: 8px; overflow: auto; max-height: 40vh; font-size: 11px; }
