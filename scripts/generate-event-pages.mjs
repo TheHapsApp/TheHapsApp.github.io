@@ -6,15 +6,25 @@
  *
  * Mirrors the web browser's feed gates (events/app.js): merged_into null,
  * is_hidden false, is_low_priority false, is_virtual false,
- * enrichment_status != expanded, start_time >= now-4h. No location gate —
- * pages are generated for every region in the catalog.
+ * enrichment_status != expanded. No location gate — pages are generated for
+ * every region in the catalog.
+ *
+ * Recently-ended events (started within KEEP_PAST_DAYS) keep their pages —
+ * rendered with an "ended" notice — instead of 404ing the morning after
+ * Google crawled them; they drop out of the sitemap and landing lists.
  *
  * Multi-date series collapse the same way the app and web grid do
  * (exhibit_id, else normalized title|venue). Every occurrence gets a page so
  * any shared /event/{id} link previews correctly, but non-representative
- * occurrences canonical-link to the earliest upcoming one and only
- * representatives are listed in the sitemap, so search engines see one page
- * per real-world event.
+ * occurrences canonical-link to the representative and only representatives
+ * are listed in the sitemap, so search engines see one page per real-world
+ * event. The representative is sticky across builds (persisted next to the
+ * --cache dataset) so canonicals don't flap as occurrences pass.
+ *
+ * sitemap <lastmod> is content-hash based: a page's lastmod only moves when
+ * its rendered content actually changes. (events.updated_at is bumped by the
+ * nightly re-scrape on every touched row, so using it stamped ~65% of the
+ * sitemap "modified today" every day — a lastmod crawlers learn to ignore.)
  *
  * Usage: node scripts/generate-event-pages.mjs --site <dir>
  *   <dir> is a built copy of the site; pages land in <dir>/event/,
@@ -22,13 +32,16 @@
  */
 import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const SB = 'https://cvcnugkqdgmcntsuplaj.supabase.co/rest/v1';
 const KEY = 'sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz';
 const SITE = 'https://thehaps.app';
 const APP_ID = '6775696204';
 const PAGE = 1000;
-const GRACE_MS = 4 * 3600e3;
+const GRACE_MS = 4 * 3600e3;      // an occurrence stays "live" until 4h past its end (or start when no end)
+const KEEP_PAST_DAYS = 7;         // ended events keep a (noticed) page this long before 404ing
+const RELATED_CAP = 6;            // cross-links per event page ("More events near {city}")
 // How long a cached dataset (--cache) may be reused before we refetch anyway,
 // even on a push, so the site self-heals if the nightly refresh ever fails.
 const CACHE_MAX_AGE_MS = 24 * 3600e3;
@@ -277,7 +290,7 @@ async function sbFetchJson(url, label) {
 }
 
 async function fetchAll() {
-  const floor = new Date(Date.now() - GRACE_MS).toISOString();
+  const floor = new Date(Date.now() - KEEP_PAST_DAYS * 86400e3).toISOString();
   const rows = [];
   for (let offset = 0; ; offset += PAGE) {
     const p = new URLSearchParams({
@@ -359,11 +372,16 @@ function toItem(r) {
   const tz = tzFor(r.state);
   const start = new Date(r.start_time);
   const end = r.end_time ? new Date(r.end_time) : null;
-  // sitemap <lastmod> signal: the scraper stamps updated_at on every row write
-  // (SCHEMA.md), so it tracks when this event's content actually last changed.
+  // Seed value for a page's first-ever sitemap <lastmod> (see resolveLastmod);
+  // after that the content hash owns it — the scraper bumps updated_at on
+  // every row write (SCHEMA.md), changed or not, so it can't be the signal.
   // Fall back to start_time for any legacy row missing it.
   const upd = r.updated_at ? Date.parse(r.updated_at) : NaN;
   const mtimeMs = Number.isFinite(upd) ? upd : start.getTime();
+  // Live until GRACE_MS past the end (or the start when no end is known).
+  // Ended occurrences keep their pages (KEEP_PAST_DAYS fetch floor) but are
+  // excluded from the sitemap, landing lists, and related-events links.
+  const ended = (end || start).getTime() < Date.now() - GRACE_MS;
   const cont = r.precision_class === 'continuous';
   const dropIn = r.precision_class === 'drop_in_window';
   const sp = tzParts(start, tz);
@@ -378,7 +396,7 @@ function toItem(r) {
       if (m.is_primary || !primary) primary = c.slug;
     }
   });
-  return { r, id: r.id, tz, start, end, cont, dropIn, allDay, slugs, primary, mtimeMs };
+  return { r, id: r.id, tz, start, end, ended, cont, dropIn, allDay, slugs, primary, mtimeMs };
 }
 
 function dateLine(it) {
@@ -468,6 +486,8 @@ h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
 .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:.3rem .7rem;font-size:.85rem;color:var(--ink);text-decoration:none}
 .pill.is-on{border-color:var(--violet);background:#efe9fb;font-weight:700}
 .desc{margin-top:1.2rem}.desc p{margin:.6rem 0}
+.notice{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:.6rem .9rem;margin:.5rem 0 .8rem;font-weight:600}
+.notice a{color:var(--violet)}
 .morecity{margin:1.2rem 0 0;font-weight:700}.morecity a{color:var(--violet)}
 .appcta{margin-top:1.8rem;background:#fff;border:1px solid var(--line);border-radius:16px;padding:1rem 1.2rem}
 .appcta a{color:var(--violet);font-weight:700}
@@ -486,7 +506,7 @@ h2{font-size:1.15rem;margin:1.6rem 0 .6rem}
 .cities{margin-top:1.6rem;color:var(--muted);font-size:.9rem}.cities a{color:var(--violet);text-decoration:none;font-weight:600}
 `;
 
-function pageHtml(it, group) {
+function pageHtml(it, group, related = '') {
   const r = it.r;
   const rep = group.rep;
   const canonical = `${SITE}/event/${rep.id}/`;
@@ -520,6 +540,17 @@ function pageHtml(it, group) {
     ).join('');
     datesBlock = `<section class="dates"><h2>All dates &amp; times</h2><div class="pills">${pills}` +
       (group.items.length > 16 ? '<span class="pill">+ more in the app</span>' : '') + '</div></section>';
+  }
+
+  let notice = '';
+  if (it.ended) {
+    const near = nearestCity(r.latitude, r.longitude);
+    const more = near
+      ? `<a href="/events/${near.slug}/">Find more things to do in ${esc(near.name)} →</a>`
+      : '<a href="/">Browse upcoming events →</a>';
+    notice = `<p class="notice">${group.items.some(o => !o.ended)
+      ? 'This date has passed — see the other dates &amp; times below.'
+      : 'This event has ended.'} ${more}</p>`;
   }
 
   const descText = stripTags(r.description || '');   // entities decoded in toItem; drop HTML tags
@@ -560,6 +591,7 @@ function pageHtml(it, group) {
     ${safeUrl(r.image_url) ? `<img class="hero-img" src="${esc(safeUrl(r.image_url))}" alt="${esc(r.title)}" onerror="this.remove()">` : ''}
     ${badges ? `<div class="tags">${badges}</div>` : ''}
     <h1>${esc(r.title)}</h1>
+    ${notice}
     ${r.one_line_summary ? `<p class="lede">${esc(r.one_line_summary)}</p>` : ''}
     <ul class="facts">${facts}</ul>
     <div class="actions">
@@ -568,6 +600,7 @@ function pageHtml(it, group) {
     </div>
     ${datesBlock}
     ${descHtml}
+    ${related}
     ${(() => {
       const near = nearestCity(r.latitude, r.longitude);
       return near ? `<p class="morecity"><a href="/events/${near.slug}/">More things to do in ${esc(near.name)} →</a></p>` : '';
@@ -687,11 +720,13 @@ function cityPages(city, items) {
   const hubPath = `/events/${city.slug}/`;
   const crumb = `<a href="/events/${city.slug}/">Things to do in ${esc(city.name)}</a> ›`;
 
-  // First occurrence per group matching pred → sorted rows + event-page URLs.
+  // First live occurrence per group matching pred → sorted rows + event-page
+  // URLs. Ended occurrences (kept in the dataset so their pages don't 404)
+  // never appear on landing lists.
   function pick(pred, cap = LIST_CAP) {
     const picked = [];
     groups.forEach(g => {
-      const o = g.items.find(pred);
+      const o = g.items.find(x => !x.ended && pred(x));
       if (o) picked.push({ o, g });
     });
     picked.sort((a, b) => a.o.start - b.o.start);
@@ -818,6 +853,29 @@ function sitemapXml(repEntries, landingEntries, buildMs) {
   return lines.join('\n');
 }
 
+// ---------- SEO state (persisted next to the --cache dataset) ----------
+/* seo-state.json rides along in the same CI cache dir as events.json:
+ *   stamps: { "E:<id>" | "L:<path>": { h: <content sha1>, ms: <lastmod> } }
+ *   reps:   { <group key>: <representative event id> }
+ * stamps make sitemap <lastmod> honest — it only moves when the page content
+ * hash moves. reps pin each series' canonical target so it doesn't hop to a
+ * different occurrence id every day as dates pass. Losing the file is safe:
+ * lastmods fall back to updated_at (one noisy build) and reps re-seed. */
+const sha1 = s => createHash('sha1').update(s).digest('hex');
+
+// Everything that feeds the rendered page except the related-events block,
+// which rolls with the catalog daily and must not bump lastmod.
+function contentKey(it, group) {
+  const r = it.r;
+  return JSON.stringify([
+    r.title, r.one_line_summary, r.description, r.start_time, r.end_time,
+    r.venue, r.address, r.city, r.state, r.image_url, r.ticket_url,
+    r.event_url, r.link_url, r.original_url, r.is_free, r.price_summary,
+    r.age_restriction, it.slugs, it.ended, group.rep.id,
+    group.items.length, group.items.slice(0, 16).map(o => [o.id, o.r.start_time])
+  ]);
+}
+
 // ---------- main ----------
 async function main() {
   const siteArg = process.argv.indexOf('--site');
@@ -840,17 +898,79 @@ async function main() {
   // Group multi-date series; rows arrive start-ascending so items[0] = earliest = representative.
   const groups = groupItems(items);
 
+  // Load persisted SEO state; keep last build's representative when it still
+  // exists so canonicals stay put instead of hopping ids as dates pass.
+  const statePath = cachePath ? path.join(path.dirname(cachePath), 'seo-state.json') : null;
+  let prevState = {};
+  if (statePath) {
+    try { prevState = JSON.parse(await readFile(statePath, 'utf8')) || {}; }
+    catch { /* first run / evicted cache → cold start */ }
+  }
+  const prevStamps = prevState.stamps || {}, prevReps = prevState.reps || {};
+  const nextState = { stamps: {}, reps: {} };
+  for (const [key, g] of groups) {
+    const kept = prevReps[key] && g.items.find(o => o.id === prevReps[key]);
+    if (kept) g.rep = kept;
+    nextState.reps[key] = g.rep.id;
+  }
+  // lastmod only moves when the page's content hash moves; a hash never seen
+  // before seeds from updated_at (capped at build time by sitemapLastmod).
+  function resolveLastmod(key, hash, fallbackMs) {
+    const prev = prevStamps[key];
+    const ms = prev && prev.h === hash ? prev.ms : (prev ? buildMs : (fallbackMs || buildMs));
+    nextState.stamps[key] = { h: hash, ms };
+    return ms;
+  }
+
+  // Cross-link graph: per landing city, one live occurrence per group, sorted
+  // by start. Feeds each event page's "More events near {city}" block so the
+  // ~8k event pages link each other instead of being sitemap-only orphans.
+  const cityUpcoming = new Map();
+  for (const g of groups.values()) {
+    const o = g.items.find(x => !x.ended && /^[0-9a-f-]{36}$/i.test(x.id));
+    if (!o) continue;
+    const near = nearestCity(o.r.latitude, o.r.longitude);
+    if (!near) continue;
+    if (!cityUpcoming.has(near.slug)) cityUpcoming.set(near.slug, []);
+    cityUpcoming.get(near.slug).push({ o, g, city: near });
+  }
+  for (const list of cityUpcoming.values()) list.sort((a, b) => a.o.start - b.o.start);
+  function relatedHtml(it, group) {
+    const near = nearestCity(it.r.latitude, it.r.longitude);
+    const list = near && cityUpcoming.get(near.slug);
+    if (!list) return '';
+    const later = [], before = [];
+    for (const c of list) {
+      if (c.g.rep.id === group.rep.id) continue;
+      (c.o.start >= it.start ? later : before).push(c);
+    }
+    const picks = later.slice(0, RELATED_CAP);
+    for (let i = before.length - 1; i >= 0 && picks.length < RELATED_CAP; i--) picks.push(before[i]);
+    if (!picks.length) return '';
+    picks.sort((a, b) => a.o.start - b.o.start);
+    return `<section class="related"><h2>More events near ${esc(near.name)}</h2><ol class="ev-list">` +
+      picks.map(c => rowHtml(c.o, c.g)).join('\n') + '</ol></section>';
+  }
+
   const eventDir = path.join(siteDir, 'event');
   await rm(eventDir, { recursive: true, force: true });
 
   let written = 0;
+  const repEntries = [];
   for (const group of groups.values()) {
+    let newestMs = 0;
     for (const it of group.items) {
       if (!/^[0-9a-f-]{36}$/i.test(it.id)) continue;
       const dir = path.join(eventDir, it.id);
       await mkdir(dir, { recursive: true });
-      await writeFile(path.join(dir, 'index.html'), pageHtml(it, group));
+      await writeFile(path.join(dir, 'index.html'), pageHtml(it, group, relatedHtml(it, group)));
+      newestMs = Math.max(newestMs, resolveLastmod('E:' + it.id, sha1(contentKey(it, group)), it.mtimeMs));
       written++;
+    }
+    // One sitemap entry per collapsed series, only while it still has a live
+    // occurrence; ended-but-kept pages stay reachable but stop being advertised.
+    if (/^[0-9a-f-]{36}$/i.test(group.rep.id) && group.items.some(o => !o.ended)) {
+      repEntries.push({ id: group.rep.id, mtimeMs: newestMs });
     }
   }
 
@@ -861,18 +981,21 @@ async function main() {
       const dir = path.join(siteDir, page.path.slice(1));
       await mkdir(dir, { recursive: true });
       await writeFile(path.join(dir, 'index.html'), page.html);
-      landingEntries.push({ path: page.path, mtimeMs: page.mtimeMs });
+      landingEntries.push({
+        path: page.path,
+        mtimeMs: resolveLastmod('L:' + page.path, sha1(page.html), page.mtimeMs)
+      });
     }
   }
 
-  // One sitemap entry per collapsed series; its <lastmod> is the newest touch
-  // across the occurrences that share the representative event page.
-  const repEntries = [...groups.values()]
-    .filter(g => /^[0-9a-f-]{36}$/i.test(g.rep.id))
-    .map(g => ({ id: g.rep.id, mtimeMs: Math.max(...g.items.map(it => it.mtimeMs)) }));
   await writeFile(path.join(siteDir, 'sitemap.xml'), sitemapXml(repEntries, landingEntries, buildMs));
+  if (statePath) {
+    await mkdir(path.dirname(statePath), { recursive: true });
+    await writeFile(statePath, JSON.stringify(nextState));
+  }
 
-  console.log(`Wrote ${written} event pages (${groups.size} collapsed events in sitemap) → ${eventDir}`);
+  const endedCount = items.filter(it => it.ended).length;
+  console.log(`Wrote ${written} event pages (${endedCount} ended-but-kept; ${repEntries.length} collapsed events in sitemap) → ${eventDir}`);
   console.log(`Wrote ${landingEntries.length} landing pages: ${landingEntries.map(e => e.path).join(' ')}`);
 }
 
