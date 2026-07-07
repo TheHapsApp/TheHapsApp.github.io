@@ -88,7 +88,10 @@
     rows: [],            // raw rows, deduped by id, ascending start
     rowIds: {},
     shown: 20,           // display cap: cards revealed so far (grows by SHOW_STEP)
-    cursor: undefined,   // undefined = not loaded; null = exhausted; string = next start_time
+    cursor: undefined,   // undefined = not loaded; null = exhausted;
+                         // { ts, id } = composite keyset cursor (last row's
+                         // start_time + id — id breaks ties so rows sharing a
+                         // boundary timestamp beyond the page limit aren't lost)
     loading: false,
     error: false
   };
@@ -521,7 +524,7 @@
       p.set('is_hidden', 'eq.false');
     }
     p.set('enrichment_status', 'neq.expanded');
-    p.set('order', 'start_time.asc.nullslast');
+    p.set('order', 'start_time.asc.nullslast,id.asc');
     p.set('and', bboxParam());
     if (state.freeOnly) p.set('is_free', 'eq.true');
     return p;
@@ -531,8 +534,19 @@
     p.set('is_low_priority', 'eq.false');
     p.set('is_virtual', 'eq.false');
     var win = chipWindow(state.when);
-    var startFrom = cursor || (win.start && win.start > feedFloor() ? win.start : feedFloor()).toISOString();
-    p.append('start_time', (cursor ? 'gt.' : 'gte.') + startFrom);
+    if (cursor) {
+      // Composite keyset cursor (start_time, id). A bare start_time.gt cursor
+      // silently skipped rows sharing the boundary timestamp beyond the page
+      // limit — and start times cluster heavily on round hours. The redundant
+      // gte keeps the index range scan (the bare or= times out server-side);
+      // values are double-quoted for PostgREST's logic-tree parser and the
+      // whole param is percent-encoded by URLSearchParams.
+      p.append('start_time', 'gte.' + cursor.ts);
+      p.set('or', '(start_time.gt."' + cursor.ts + '",and(start_time.eq."' + cursor.ts + '",id.gt."' + cursor.id + '"))');
+    } else {
+      var startFrom = (win.start && win.start > feedFloor() ? win.start : feedFloor()).toISOString();
+      p.append('start_time', 'gte.' + startFrom);
+    }
     if (win.end) p.append('start_time', 'lt.' + win.end.toISOString());
     p.set('limit', String(PAGE));
     return '/events?' + p.toString();
@@ -839,8 +853,9 @@
       .then(function (rows) {
         if (token !== loadToken) return;
         mergeRows(rows);
-        state.cursor = rows.length >= PAGE && rows[rows.length - 1].start_time
-          ? rows[rows.length - 1].start_time : null;
+        var last = rows.length >= PAGE ? rows[rows.length - 1] : null;
+        state.cursor = last && last.start_time && last.id
+          ? { ts: last.start_time, id: last.id } : null;
         // Recurring events collapse into already-visible cards, so a page of
         // raw rows can net only a few NEW cards — keep fetching until this
         // load action has actually added FILL_TARGET cards (or pages run out).
