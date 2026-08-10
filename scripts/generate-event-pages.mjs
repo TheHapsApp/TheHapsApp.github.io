@@ -470,7 +470,7 @@ const BASE_CSS = `
 .brand{display:flex;align-items:center;gap:.45rem;font-weight:800;font-size:1.15rem;color:var(--ink);text-decoration:none}.brand img{height:28px;width:28px;border-radius:7px}
 .getapp{background:var(--violet);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;padding:.45rem .9rem;border-radius:999px}
 main{max-width:680px;margin:0 auto;padding:1.2rem 1.1rem 3rem}
-.hero-img{width:100%;max-height:380px;object-fit:cover;border-radius:16px;border:1px solid var(--line);margin:.3rem 0 1rem}
+.hero-img{width:100%;aspect-ratio:16/9;max-height:380px;object-fit:cover;border-radius:16px;border:1px solid var(--line);margin:.3rem 0 1rem}
 h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
 .lede{color:var(--muted);margin:.2rem 0 .8rem}
 .tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0}
@@ -567,8 +567,8 @@ function pageHtml(it, group, related = '') {
 <title>${esc(headTitle)}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${esc(canonical)}">
-<link rel="icon" href="/assets/icon-512.png">
-<link rel="apple-touch-icon" href="/assets/icon-512.png">
+<link rel="icon" href="/assets/icon-64.png">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
 <meta name="apple-itunes-app" content="app-id=${APP_ID}, app-argument=${esc(selfUrl)}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Haps">
@@ -583,12 +583,12 @@ function pageHtml(it, group, related = '') {
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
+  <a class="brand" href="/"><img src="/assets/icon-64.png" alt=""> haps</a>
   <a class="getapp" href="/beta">Get the app</a>
 </header>
 <main>
   <article>
-    ${safeUrl(r.image_url) ? `<img class="hero-img" src="${esc(safeUrl(r.image_url))}" alt="${esc(r.title)}" onerror="this.remove()">` : ''}
+    ${safeUrl(r.image_url) ? `<img class="hero-img" src="${esc(safeUrl(r.image_url))}" alt="${esc(r.title)}" fetchpriority="high" onerror="this.remove()">` : ''}
     ${badges ? `<div class="tags">${badges}</div>` : ''}
     <h1>${esc(r.title)}</h1>
     ${notice}
@@ -603,7 +603,10 @@ function pageHtml(it, group, related = '') {
     ${related}
     ${(() => {
       const near = nearestCity(r.latitude, r.longitude);
-      return near ? `<p class="morecity"><a href="/events/${near.slug}/">More things to do in ${esc(near.name)} →</a></p>` : '';
+      return near
+        ? `<p class="morecity"><a href="/events/${near.slug}/">More things to do in ${esc(near.name)} →</a>` +
+          ` · <a href="/events/${near.slug}/this-weekend/">This weekend →</a></p>`
+        : '';
     })()}
     <div class="appcta"><strong>Take it with you.</strong> Save this event in the Haps app and get a reminder before it starts. <a href="/beta">Get the app →</a></div>
   </article>
@@ -671,8 +674,8 @@ function landingHtml(o) {
 <title>${esc(o.headTitle)}</title>
 <meta name="description" content="${esc(o.metaDesc)}">
 <link rel="canonical" href="${esc(url)}">
-<link rel="icon" href="/assets/icon-512.png">
-<link rel="apple-touch-icon" href="/assets/icon-512.png">
+<link rel="icon" href="/assets/icon-64.png">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
 <meta name="apple-itunes-app" content="app-id=${APP_ID}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Haps">
@@ -687,7 +690,7 @@ function landingHtml(o) {
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
+  <a class="brand" href="/"><img src="/assets/icon-64.png" alt=""> haps</a>
   <a class="getapp" href="/beta">Get the app</a>
 </header>
 <main>

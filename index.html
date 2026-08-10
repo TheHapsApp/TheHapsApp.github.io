@@ -6,8 +6,11 @@
 <title>Haps — Things to Do in Salt Lake City &amp; Utah | Local Events</title>
 <meta name="description" content="Find things to do in Salt Lake City, Provo, Ogden, Park City, and across Utah — concerts, festivals, food, family fun, and more. Browse, filter, and save local events with Haps.">
 <link rel="canonical" href="https://thehaps.app/">
-<link rel="icon" href="/assets/icon-512.png">
-<link rel="apple-touch-icon" href="/assets/icon-512.png">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cvcnugkqdgmcntsuplaj.supabase.co" crossorigin>
+<link rel="preconnect" href="https://us.i.posthog.com" crossorigin>
+<link rel="icon" href="/assets/icon-64.png">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
 <meta name="apple-itunes-app" content="app-id=6775696204">
 <script>
 // Shared event links land here as /#e={id}. Point the Smart App Banner's
@@ -26,6 +29,15 @@
 <meta property="og:url" content="https://thehaps.app/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+  {"@type":"WebSite","@id":"https://thehaps.app/#website","url":"https://thehaps.app/","name":"Haps",
+   "description":"Local events across Utah — concerts, festivals, food, family fun, and more.",
+   "publisher":{"@id":"https://thehaps.app/#org"}},
+  {"@type":"Organization","@id":"https://thehaps.app/#org","name":"Haps","url":"https://thehaps.app/",
+   "logo":"https://thehaps.app/assets/icon-512.png","email":"admin@thehaps.app"}
+]}
+</script>
 <script>
 // Apply the saved theme before CSS paints, so there's no flash of the default.
 (function () {
@@ -42,7 +54,7 @@
 
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="/"><img src="/assets/icon-512.png" alt=""> haps</a>
+      <a class="brand" href="/"><img src="/assets/icon-64.png" alt=""> haps</a>
       <div class="searchbox">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <input id="searchInput" type="search" placeholder="Search events, venues…" autocomplete="off" aria-label="Search events">
@@ -213,6 +225,14 @@
         <a href="/events/logan/">Logan</a>
         <a href="/events/st-george/">St. George</a>
       </span>
+      <span class="links">This weekend:
+        <a href="/events/salt-lake-city/this-weekend/">Salt Lake City</a>
+        <a href="/events/provo/this-weekend/">Provo &amp; Orem</a>
+        <a href="/events/ogden/this-weekend/">Ogden</a>
+        <a href="/events/park-city/this-weekend/">Park City</a>
+        <a href="/events/logan/this-weekend/">Logan</a>
+        <a href="/events/st-george/this-weekend/">St. George</a>
+      </span>
       <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
       <span class="links">
         <a href="/about/">About</a>
@@ -227,11 +247,12 @@
     <div style="max-width:560px;margin:3rem auto;padding:0 1.25rem;text-align:center;font-family:sans-serif">
       <p>Browsing events on the web needs JavaScript enabled.</p>
       <p><a href="/events/salt-lake-city/">Things to do in Salt Lake City</a> · <a href="/events/provo/">Provo</a> · <a href="/events/ogden/">Ogden</a> · <a href="/events/park-city/">Park City</a> · <a href="/events/logan/">Logan</a> · <a href="/events/st-george/">St. George</a></p>
+      <p><a href="/events/salt-lake-city/this-weekend/">This weekend in Salt Lake City</a></p>
       <p><a href="/about/">Learn about Haps</a> · <a href="/beta">Get the app →</a></p>
     </div>
   </noscript>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2"></script>
   <script src="/events/app.js?v=18"></script>
 </body>
 </html>
