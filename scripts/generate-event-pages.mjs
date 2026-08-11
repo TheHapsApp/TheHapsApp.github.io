@@ -48,7 +48,7 @@ const CACHE_MAX_AGE_MS = 24 * 3600e3;
 
 const SELECT = 'id,title,one_line_summary,description,start_time,end_time,venue,address,city,state,' +
   'latitude,longitude,image_url,ticket_url,event_url,link_url,original_url,is_free,price_summary,' +
-  'age_restriction,precision_class,is_long_running,exhibit_id,updated_at';
+  'age_restriction,precision_class,is_long_running,exhibit_id,is_featured,updated_at';
 // Category map is fetched separately (see attachCategories) rather than embedded
 // in SELECT — embedding made every offset page recompute the category JSON for
 // all preceding rows, blowing the 3s anon statement_timeout past ~28k events.
@@ -476,6 +476,7 @@ h1{font-size:1.65rem;line-height:1.25;margin:.4rem 0 .5rem}
 .tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0}
 .tag{background:#efe9fb;color:#5b21b6;border-radius:999px;padding:.22rem .65rem;font-size:.82rem;font-weight:600}
 .tag-free{background:#e7f6ec;color:#15803d}.tag-age{background:#fdeaea;color:#b91c1c}
+.tag-pick{background:#fef3c7;color:#92400e}
 .facts{list-style:none;padding:0;margin:.8rem 0}.facts li{padding:.3rem 0}
 .facts a{color:var(--violet)}
 .actions{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0 1.4rem}
@@ -632,11 +633,17 @@ function groupItems(items) {
   return groups;
 }
 
+// A series counts as featured when ANY of its occurrences carries the flag —
+// admin "Boost" (app detail screen / web ?admin=1 overlay) stars one row, not
+// the whole group, and the weekend list may surface a different occurrence.
+const groupFeatured = g => g.items.some(x => x.r.is_featured === true);
+
 function rowHtml(o, g) {
   const r = o.r;
   const when = fmt(o.start, o.tz, { weekday: 'short', month: 'short', day: 'numeric' }) +
     (o.allDay || o.cont ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
   let tags = '';
+  if (groupFeatured(g)) tags += '<span class="tag tag-pick">⭐ Our pick</span>';
   if (o.primary && CATS[o.primary]) tags += `<span class="tag">${CATS[o.primary][1]} ${esc(CATS[o.primary][0])}</span>`;
   if (r.is_free === true) tags += '<span class="tag tag-free">Free</span>';
   const dayCount = new Set(g.items.map(x => localDateStr(x.start, x.tz))).size;
@@ -726,15 +733,24 @@ function cityPages(city, items) {
   // First live occurrence per group matching pred → sorted rows + event-page
   // URLs. Ended occurrences (kept in the dataset so their pages don't 404)
   // never appear on landing lists.
-  function pick(pred, cap = LIST_CAP) {
+  function pick(pred, cap = LIST_CAP, opts = {}) {
     const picked = [];
     groups.forEach(g => {
       const o = g.items.find(x => !x.ended && pred(x));
       if (o) picked.push({ o, g });
     });
-    picked.sort((a, b) => a.o.start - b.o.start);
+    // featuredFirst: admin-boosted events (is_featured, the app/overlay "star")
+    // pin to the top as the page's suggested picks; the rest stay chronological.
+    picked.sort((a, b) => {
+      if (opts.featuredFirst) {
+        const d = (groupFeatured(a.g) ? 0 : 1) - (groupFeatured(b.g) ? 0 : 1);
+        if (d) return d;
+      }
+      return a.o.start - b.o.start;
+    });
     return {
       total: picked.length,
+      featured: picked.filter(p => groupFeatured(p.g)).length,
       // Newest event on this landing page → its sitemap <lastmod>. 0 when empty
       // (sitemapLastmod() then falls back to build time).
       mtimeMs: picked.length ? Math.max(...picked.map(p => p.o.mtimeMs)) : 0,
@@ -748,7 +764,7 @@ function cityPages(city, items) {
   const wkSet = new Set(wkDates);
   const wkLabel = weekendLabel(wkDates);
 
-  const weekend = pick(o => wkSet.has(localDateStr(o.start, o.tz)));
+  const weekend = pick(o => wkSet.has(localDateStr(o.start, o.tz)), LIST_CAP, { featuredFirst: true });
   pages.push({
     path: `/events/${city.slug}/this-weekend/`,
     mtimeMs: weekend.mtimeMs,
@@ -756,7 +772,8 @@ function cityPages(city, items) {
       path: `/events/${city.slug}/this-weekend/`, city, crumb: `${crumb} This weekend`,
       headTitle: `Things to Do in ${city.name} This Weekend | Haps`,
       h1: `Things to do in ${city.name} this weekend`,
-      lede: `${weekend.total} event${weekend.total === 1 ? '' : 's'} happening around ${city.name} this weekend (${wkLabel}) — updated daily.`,
+      lede: `${weekend.total} event${weekend.total === 1 ? '' : 's'} happening around ${city.name} this weekend (${wkLabel})` +
+        `${weekend.featured ? ' — starting with our top picks' : ''} — updated daily.`,
       metaDesc: `What's happening in ${city.name} this weekend (${wkLabel}): ${weekend.total} events — concerts, markets, family fun, nightlife and more. Updated daily on Haps.`,
       picked: weekend, emptyMsg: 'Nothing on the calendar yet — check back soon or browse all upcoming events.',
       browseHash: `/#city=${city.browser}&when=weekend`
