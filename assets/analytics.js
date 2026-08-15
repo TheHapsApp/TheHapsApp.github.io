@@ -16,7 +16,15 @@ try {
 posthog.init('phc_kdA422xs2LCRJ8fLKwB79APgs8JevXyTi5gJVjxMzkux', {
     api_host: 'https://us.i.posthog.com',
     defaults: '2026-01-30',
-    opt_out_capturing_by_default: phOptedOut
+    opt_out_capturing_by_default: phOptedOut,
+    /* Drop automation traffic before it's ever sent: scraper fleets spoof
+       user agents and viewports (so server-side UA filtering misses them),
+       but headless drivers expose navigator.webdriver unless deliberately
+       stealth-patched. Runs per event; return null = never ingested. */
+    before_send: function (event) {
+      if (navigator.webdriver || /Headless/i.test(navigator.userAgent)) return null;
+      return event;
+    }
 });
 
 if (phOptedOut) {
