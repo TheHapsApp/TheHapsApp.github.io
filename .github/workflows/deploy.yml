@@ -73,3 +73,19 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # GitHub disables scheduled workflows after 60 days without a commit to the
+  # repo. That froze this site on 2026-10-14 (last commit 2026-08-15): event
+  # pages + sitemap stopped regenerating and Google traffic fell ~90%.
+  # Re-enabling the workflow through the API on every nightly run resets the
+  # inactivity timer, so it can't lapse again while the cron keeps firing.
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Reset the 60-day inactivity timer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/deploy.yml/enable"
