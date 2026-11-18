@@ -48,7 +48,10 @@ const CACHE_MAX_AGE_MS = 24 * 3600e3;
 
 const SELECT = 'id,title,one_line_summary,description,start_time,end_time,venue,address,city,state,' +
   'latitude,longitude,image_url,ticket_url,event_url,link_url,original_url,is_free,price_summary,' +
-  'age_restriction,precision_class,is_long_running,exhibit_id,is_featured,updated_at';
+  'age_restriction,precision_class,is_long_running,exhibit_id,is_featured,updated_at,appeal_score,' +
+  // >=2 / >=4 merged source listings — a "lots of outlets covered it" signal for
+  // landing-page ranking. JSON-path select keeps egress tiny vs the whole blob.
+  'ms2:merged_sources->1->>source_site,ms4:merged_sources->3->>source_site';
 // Category map is fetched separately (see attachCategories) rather than embedded
 // in SELECT — embedding made every offset page recompute the category JSON for
 // all preceding rows, blowing the 3s anon statement_timeout past ~28k events.
@@ -571,6 +574,16 @@ h2{font-size:1.15rem;margin:1.6rem 0 .6rem}
 .qlabel{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-right:.2rem}
 .more{margin-top:1.6rem}.more h2{font-size:1.05rem;margin:0 0 .3rem}
 .intro{margin:.2rem 0 .8rem}
+.picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;list-style:none;padding:0;margin:.4rem 0 1rem}
+@media(min-width:620px){.picks{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.pk{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.pk a{color:inherit;text-decoration:none;display:flex;flex-direction:column;height:100%}
+.pk-img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--line);display:block}
+.pk-ph{width:100%;aspect-ratio:4/3;background:var(--line);color:var(--violet);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.pk-body{padding:.5rem .65rem .65rem}
+.pk-date{display:block;color:var(--violet);font-weight:700;font-size:.74rem;text-transform:uppercase}
+.pk-title{display:block;font-weight:700;font-size:.92rem;line-height:1.3;margin:.1rem 0}
+.pk-venue{display:block;color:var(--muted);font-size:.78rem;line-height:1.3}
 .crumbs{font-size:.85rem;color:var(--muted);margin:.2rem 0 .6rem}.crumbs a{color:var(--muted)}
 .cities{margin-top:1.6rem;color:var(--muted);font-size:.9rem}.cities a{color:var(--violet);text-decoration:none;font-weight:600}
 `;
@@ -689,6 +702,83 @@ function pageHtml(it, group, related = '') {
 }
 
 // ---------- landing pages ----------
+/* "Standout" ranking for landing-page Top picks (Daniel, 2026-11-17): lead with
+ * things a general audience would get excited about, but NOT pro sports or
+ * arena tours — those are advertised everywhere already and repeat weekly —
+ * and keep a local/quirky mix via per-venue / per-category caps. Admin Boost
+ * (is_featured) always wins. Routine recurring programs (storytime, weekly
+ * yoga, library classes, book clubs…) are dropped from general pages and only
+ * appear on their own topic pages. */
+const SPORTS_MATCHUP_RE = /\b(vs\.?|versus|v\.)\s/i;
+const ARENA_RE = /delta center|maverik center|usana|utah first credit union amph|america first field|rice-eccles|vivint|huntsman center|lavell edwards|marriott center|dee events center|spectrum\b/i;
+const ROUTINE_RE = /story ?time|\byoga\b|book (club|group)|\blapsit\b|\btoddler|\bbaby\b|\btots\b|\bpreschool\b|\besl\b|english (class|conversation)|conversation (club|group|class)|homework help|tutoring|computer (class|basics|help)|tech help|open lab|knitting|crochet|\blego\b|chess club|support group|recovery|\bal-?anon\b|\bmeditation\b|\bzumba\b|tai chi|\bpilates\b|aerobics|bingo|blood drive|office hours|study hall|teen (hangout|lounge)|craft(y)? (corner|time)/i;
+const LIBRARY_RE = /\blibrary\b|\bbranch\b/i;
+
+const coreTitle = t => norm(String(t || '')
+  .replace(/\(.*?\)/g, ' ')
+  .replace(/\s[—–-]\s.*$/, '')          // "X — Live at the Eccles", "X - 2026"
+  .replace(/\b(19|20)\d\d\b/g, ' ')
+  .replace(/^(the|a|an)\s+/i, ''));
+
+function isRoutine(o, g) {
+  const r = o.r;
+  if (ROUTINE_RE.test(r.title)) return true;
+  if (LIBRARY_RE.test(r.venue || '') && (r.appeal_score == null || r.appeal_score <= 6)) return true;
+  // Weekly-ish series: 4+ dates in the window and nothing special about it.
+  const days = new Set(g.items.filter(x => !x.ended).map(x => localDateStr(x.start, x.tz))).size;
+  return days >= 4 && (r.appeal_score == null || r.appeal_score <= 6);
+}
+function standoutScore(o, g, routineOk = false) {
+  const r = o.r;
+  let s = r.appeal_score == null ? 5 : r.appeal_score;
+  if (r.ms2) s += 0.5;                 // listed by 2+ outlets
+  if (r.ms4) s += 0.5;                 // …4+
+  if (safeUrl(r.image_url)) s += 0.3;
+  if (r.is_free === true) s += 0.4;
+  if (SPORTS_MATCHUP_RE.test(r.title)) s -= 3;
+  if (ARENA_RE.test(r.venue || '')) s -= 2;
+  if (/\btour\b/i.test(r.title)) s -= 1;    // touring headliners: advertised everywhere
+  if (!routineOk && isRoutine(o, g)) s -= 3;
+  if (groupFeatured(g)) s += 100;
+  return s;
+}
+const PICKS_N = 8;
+/* Greedy diverse top-N: best score first, at most 1 sports matchup, 2 per
+ * venue, 3 per primary category. Boosted events bypass the caps. */
+function topPicks(list, routineOk = false) {
+  const ranked = list.map(p => ({ p, s: standoutScore(p.o, p.g, routineOk) })).sort((a, b) => b.s - a.s);
+  const out = [], venue = new Map(), cat = new Map();
+  let sports = 0;
+  for (const { p, s } of ranked) {
+    if (out.length >= PICKS_N) break;
+    const boosted = s >= 100;
+    if (!boosted && s < 6) break;      // don't pad Top picks with filler
+    const v = norm(p.o.r.venue), c = p.o.primary || '-';
+    const isSports = SPORTS_MATCHUP_RE.test(p.o.r.title);
+    if (!boosted && ((v && (venue.get(v) || 0) >= 2) || (cat.get(c) || 0) >= 3 || (isSports && sports >= 1))) continue;
+    out.push(p);
+    if (v) venue.set(v, (venue.get(v) || 0) + 1);
+    cat.set(c, (cat.get(c) || 0) + 1);
+    if (isSports) sports++;
+  }
+  return out;
+}
+function pickCardHtml(o, g) {
+  const r = o.r;
+  const when = fmt(o.start, o.tz, { weekday: 'short', month: 'short', day: 'numeric' }) +
+    (o.allDay || o.cont ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
+  const img = safeUrl(r.image_url);
+  const ph = (o.primary && CATS[o.primary]) ? CATS[o.primary][0] : 'Event';
+  return `<li class="pk"><a href="/event/${esc(o.id)}/">` +
+    // No-image / broken-image fallback is a plain text tile (no emoji — matches
+    // the site's token-based redesign; see /assets/tokens.css).
+    (img ? `<img class="pk-img" src="${esc(img)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;pk-ph&quot;>${esc(ph)}</span>'">`
+         : `<span class="pk-ph">${esc(ph)}</span>`) +
+    `<span class="pk-body"><span class="pk-date">${esc(when)}</span>` +
+    `<span class="pk-title">${groupFeatured(g) ? '⭐ ' : ''}${esc(r.title)}</span>` +
+    (r.venue ? `<span class="pk-venue">${esc(r.venue)}</span>` : '') + '</span></a></li>';
+}
+
 function groupItems(items) {
   const groups = new Map();
   items.forEach(it => {
@@ -735,11 +825,15 @@ function landingHtml(o) {
   //      more? (sibling-page nav, bottom), picked:{rows,urls,total}, emptyMsg,
   //      browseHash, city }
   const url = SITE + o.path;
-  const list = o.picked.rows.length
+  const picks = o.picked.picks && o.picked.picks.length >= 3
+    ? `<h2>Top picks</h2><ol class="picks">${o.picked.picks.join('')}</ol>` +
+      `<h2>${o.picked.total > 0 ? 'Everything coming up' : ''}</h2>`
+    : '';
+  const list = picks + (o.picked.rows.length
     ? `<ol class="ev-list">${o.picked.rows.join('\n')}</ol>` +
       (o.picked.total > o.picked.rows.length
         ? `<p class="lede">…and ${o.picked.total - o.picked.rows.length} more — <a href="${esc(o.browseHash)}">browse them all</a>.</p>` : '')
-    : `<p class="lede">${esc(o.emptyMsg)}</p>`;
+    : `<p class="lede">${esc(o.emptyMsg)}</p>`);
   const others = LANDING_CITIES.filter(c => c.slug !== o.city.slug)
     .map(c => `<a href="/events/${c.slug}/">${esc(c.name)}</a>`).join(' · ');
   return `<!DOCTYPE html>
@@ -760,7 +854,7 @@ function landingHtml(o) {
 <meta property="og:url" content="${esc(url)}">
 <meta property="og:image" content="${SITE}/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">${itemListLd(o.h1, o.picked.urls)}</script>
+<script type="application/ld+json">${itemListLd(o.h1, [...new Set([...(o.picked.pickUrls || []), ...o.picked.urls])])}</script>
 <style>${BASE_CSS}</style>
 <script src="/assets/analytics.js"></script>
 </head>
@@ -804,12 +898,23 @@ function cityPages(city, items) {
   // First live occurrence per group matching pred → sorted rows + event-page
   // URLs. Ended occurrences (kept in the dataset so their pages don't 404)
   // never appear on landing lists.
+  // opts.routineOk: keep routine recurring programs (topic pages only).
   function pick(pred, cap = LIST_CAP, opts = {}) {
-    const picked = [];
+    let picked = [];
     groups.forEach(g => {
       const o = g.items.find(x => !x.ended && pred(x));
-      if (o) picked.push({ o, g });
+      if (o && (opts.routineOk || !isRoutine(o, g))) picked.push({ o, g });
     });
+    // Same show listed under venue-name variants ("The Eccles Theater" vs
+    // "eccles theater") survives the title|venue grouping — collapse on core
+    // title + first local date, keeping the best-scoring copy.
+    const seen = new Map();
+    picked.forEach(p => {
+      const k = coreTitle(p.o.r.title) + '|' + localDateStr(p.o.start, p.o.tz);
+      const cur = seen.get(k);
+      if (!cur || standoutScore(p.o, p.g) > standoutScore(cur.o, cur.g)) seen.set(k, p);
+    });
+    picked = [...seen.values()];
     // featuredFirst: admin-boosted events (is_featured, the app/overlay "star")
     // pin to the top as the page's suggested picks; the rest stay chronological.
     picked.sort((a, b) => {
@@ -819,6 +924,7 @@ function cityPages(city, items) {
       }
       return a.o.start - b.o.start;
     });
+    const top = topPicks(picked, opts.routineOk);
     return {
       total: picked.length,
       featured: picked.filter(p => groupFeatured(p.g)).length,
@@ -826,7 +932,9 @@ function cityPages(city, items) {
       // (sitemapLastmod() then falls back to build time).
       mtimeMs: picked.length ? Math.max(...picked.map(p => p.o.mtimeMs)) : 0,
       rows: picked.slice(0, cap).map(p => rowHtml(p.o, p.g)),
-      urls: picked.slice(0, cap).map(p => `${SITE}/event/${p.o.id}/`)
+      urls: picked.slice(0, cap).map(p => `${SITE}/event/${p.o.id}/`),
+      picks: top.map(p => pickCardHtml(p.o, p.g)),
+      pickUrls: top.map(p => `${SITE}/event/${p.o.id}/`)
     };
   }
 
@@ -904,7 +1012,7 @@ function cityPages(city, items) {
   // --- topics (keyword) ---
   TOPICS.forEach(t => {
     const picked = pick(o => within(TOPIC_WINDOW_DAYS)(o) &&
-      t.re.test(t.inSummary ? `${o.r.title} ${o.r.one_line_summary || ''}` : o.r.title));
+      t.re.test(t.inSummary ? `${o.r.title} ${o.r.one_line_summary || ''}` : o.r.title), LIST_CAP, { routineOk: true });
     if (picked.total < CAT_PAGE_MIN_GROUPS) return;
     const h1 = `${t.h1} ${city.name}`;
     add('topic', t.slug, t.label, t.emoji, picked, {
