@@ -100,7 +100,7 @@
   ['searchInput', 'searchClear', 'savedBtn', 'savedCount', 'heroCity', 'locLabel',
    'timeChips', 'freeChip', 'catChips', 'resultMeta', 'sortSel', 'viewGrid', 'viewMap',
    'savedNote', 'grid', 'mapWrap', 'stateBox', 'loadMoreWrap', 'loadMoreBtn', 'sentinel',
-   'appBanner', 'bannerClose', 'useGeo', 'cityList', 'radiusSlider', 'radiusVal',
+   'dayStrip', 'tabBar', 'tabSavedCount', 'useGeo', 'cityList', 'radiusSlider', 'radiusVal',
    'detailDialog', 'detailBody', 'toast', 'heroband', 'filterbar',
    'locPill', 'timePill', 'filtersPill', 'timeLabel', 'filtersLabel',
    'panelLoc', 'panelTime', 'panelFilters', 'filtersClear',
@@ -225,6 +225,7 @@
     var n = state.savedUpcoming;
     els.savedCount.textContent = String(n);
     els.savedCount.hidden = n <= 0;
+    if (els.tabSavedCount) { els.tabSavedCount.textContent = String(n); els.tabSavedCount.hidden = n <= 0; }
   }
   // Count only saved events that haven't ended yet — mirrors the saved view's
   // effEnd > now filter, so the badge matches what the heart screen shows
@@ -644,10 +645,16 @@
         return d !== 0 ? d : a.rep.start - b.rep.start;
       });
     } else {
+      // Agenda order: day by day; within a day, boosted picks first, then
+      // timed events by start, then all-day / ongoing runs last.
       gs.sort(function (a, b) {
+        var da = dayKeyOf(a.rep), db = dayKeyOf(b.rep);
+        if (da !== db) return da < db ? -1 : 1;
         var fa = a.rep.r.is_featured === true ? 0 : 1;
         var fb = b.rep.r.is_featured === true ? 0 : 1;
-        return fa !== fb ? fa - fb : a.rep.start - b.rep.start;
+        if (fa !== fb) return fa - fb;
+        var ca = a.rep.cont || a.rep.allDay ? 1 : 0, cb = b.rep.cont || b.rep.allDay ? 1 : 0;
+        return ca !== cb ? ca - cb : a.rep.start - b.rep.start;
       });
     }
     return gs;
@@ -708,7 +715,7 @@
   }
   function renderLocUi() {
     els.locLabel.textContent = state.cityName + ' · ' + state.radius + ' mi';
-    els.heroCity.textContent = state.citySlug === 'geo' ? 'near you' : 'near ' + state.cityName;
+    els.heroCity.textContent = state.citySlug === 'geo' ? 'near you' : 'in ' + state.cityName;
     document.title = 'Things to do ' + (state.citySlug === 'geo' ? 'near you' : 'in ' + state.cityName) + ' — Haps';
   }
   function renderCityList() {
@@ -730,7 +737,8 @@
   function heartSvg() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-6.8-4.4-9-8.4C1.6 9 3.4 5.8 6.6 5.8c2 0 3.2 1.1 5.4 3.2 2.2-2.1 3.4-3.2 5.4-3.2 3.2 0 5 3.2 3.6 6.3-2.2 4-9 8.4-9 8.4z"/></svg>';
   }
-  function cardHtml(group) {
+  function cardHtml(group, opts) {
+    opts = opts || {};
     var it = group.rep, r = it.r;
     var img = safeUrl(r.image_url);
     var catMeta = it.primary ? CAT_BY_SLUG[it.primary] : null;
@@ -752,24 +760,146 @@
         (badges ? '<span class="flag-badges">' + badges + '</span>' : '') +
       '</div>' +
       '<div class="card-body">' +
-        '<span class="card-when">' + esc(whenLabel(it)) + '</span>' +
+        '<span class="card-when">' + esc(opts.timeOnly ? rowTime(it).join(' ').trim() : whenLabel(it)) + '</span>' +
         '<h3 class="card-title">' + esc(r.title) + '</h3>' +
         '<span class="card-venue">' + esc(r.venue || r.address || r.city || '') + '</span>' +
         '<div class="card-tags">' + tags + '</div>' +
       '</div>' +
     '</article>';
   }
-  function promoHtml() {
-    return '<aside class="card card-promo">' +
-      '<h3>Get reminders before things start</h3>' +
-      '<p>Save events here and they sync to the Haps app on iPhone and Android.</p>' +
+  function inlineAppHtml() {
+    return '<aside class="inline-app">' +
+      '<p><strong>Get reminders before things start.</strong> Events you save here sync to the Haps app on iPhone and Android.</p>' +
       '<a href="/beta">Get the app</a>' +
     '</aside>';
   }
   function skeletonHtml() {
-    var one = '<div class="card sk" aria-hidden="true"><div class="card-media"></div>' +
-      '<div class="card-body"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div></div>';
-    return new Array(9).join(one) + one;
+    if (!isAgenda()) {
+      var one = '<div class="card sk" aria-hidden="true"><div class="card-media"></div>' +
+        '<div class="card-body"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div></div>';
+      return new Array(9).join(one) + one;
+    }
+    var row = '<div class="card card-row sk" aria-hidden="true"><span class="row-time"><span class="sk-line w60"></span></span>' +
+      '<div class="card-media"></div><div class="row-body"><div class="sk-line w90"></div><div class="sk-line w40"></div></div></div>';
+    return '<section class="day"><div class="dayhead"><div class="sk-line w40" style="height:22px;width:180px"></div></div>' +
+      '<div class="rows">' + new Array(8).join(row) + '</div></section>';
+  }
+
+  // ---------- agenda (day-grouped) ----------
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  // Which day an event is listed under: ongoing runs that already started sit under today.
+  function dayKeyOf(it) {
+    var now = new Date();
+    return ymd(it.start && it.start > now ? it.start : (it.cont || !it.start ? now : it.start));
+  }
+  function isAgenda() { return state.sort !== 'trending'; }
+  function rowTime(it) {
+    if (it.cont && it.start <= new Date()) return ['Open', 'now'];
+    if (it.allDay || it.cont) return ['All', 'day'];
+    if (it.dropIn) return ['Drop', 'in'];
+    var parts = fmtTime.format(it.start).split(/\s+/);
+    return [parts[0], parts[1] || ''];
+  }
+  function dayHeading(key) {
+    var d = parseLocalDate(key), today = startOfDay(new Date());
+    var diff = Math.round((d - today) / 864e5);
+    var name = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow'
+      : diff < 7 ? new Intl.DateTimeFormat([], { weekday: 'long' }).format(d) : fmtDayShort.format(d);
+    var sub = diff < 7 ? fmtMonthDay.format(d) : '';
+    var wknd = (d.getDay() === 0 || d.getDay() === 6) && diff < 7;
+    return { name: name, sub: sub, wknd: wknd };
+  }
+  function rowHtml(group) {
+    var it = group.rep, r = it.r;
+    var img = safeUrl(r.image_url);
+    var catMeta = it.primary ? CAT_BY_SLUG[it.primary] : null;
+    var t = rowTime(it);
+    var flags = '';
+    if (r.is_featured === true) flags += '<span class="row-flag">Pick</span>';
+    if (r.is_free === true) flags += '<span class="row-flag">Free</span>';
+    var meta = [];
+    var where = r.venue || r.address || r.city || '';
+    if (where) meta.push('<span class="m-venue">' + esc(where) + '</span>');
+    if (catMeta) meta.push('<span class="m-cat">' + esc(catMeta[1]) + '</span>');
+    if (it.cont && it.end) meta.push('<span>through ' + esc(fmtMonthDay.format(it.end)) + '</span>');
+    else if (group.dayCount > 1) meta.push('<span>' + group.dayCount + ' dates</span>');
+    if (it.dist != null && !state.savedView) meta.push('<span class="m-dist">' + it.dist.toFixed(1) + ' mi</span>');
+    return '<article class="card card-row" data-id="' + esc(it.id) + '" tabindex="0" role="button" aria-label="' + esc(r.title) + '">' +
+      '<span class="row-time">' + esc(t[0]) + '<small>' + esc(t[1]) + '</small></span>' +
+      '<div class="card-media">' +
+        (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
+      '</div>' +
+      '<div class="row-body">' +
+        '<h3 class="card-title">' + flags + esc(r.title) + '</h3>' +
+        '<p class="row-meta">' + meta.join('<i aria-hidden="true">·</i>') + '</p>' +
+      '</div>' +
+      '<button class="heart-btn' + (isSaved(it.id) ? ' is-saved' : '') + '" data-heart="' + esc(it.id) + '" aria-label="Save event">' + heartSvg() + '</button>' +
+    '</article>';
+  }
+  // The one app promo sits after the first ~10 rows of the first day (busy days
+  // run to hundreds of rows, so "after the first day" would bury it).
+  function rowsBlock(gs, withPromo) {
+    if (!gs.length) return withPromo ? inlineAppHtml() : '';
+    var cut = withPromo ? Math.min(10, gs.length) : gs.length;
+    var html = '<div class="rows">' + gs.slice(0, cut).map(rowHtml).join('') + '</div>';
+    if (withPromo) {
+      html += inlineAppHtml();
+      if (gs.length > cut) html += '<div class="rows">' + gs.slice(cut).map(rowHtml).join('') + '</div>';
+    }
+    return html;
+  }
+  function agendaHtml(all, shown) {
+    var counts = {}, lastKey = null;
+    all.forEach(function (g) { var k = dayKeyOf(g.rep); counts[k] = (counts[k] || 0) + 1; lastKey = k; });
+    var days = [], byKey = {};
+    shown.forEach(function (g) {
+      var k = dayKeyOf(g.rep);
+      if (!byKey[k]) { byKey[k] = []; days.push(k); }
+      byKey[k].push(g);
+    });
+    var html = '';
+    days.forEach(function (k, di) {
+      var gs = byKey[k], h = dayHeading(k);
+      var more = state.cursor && k === lastKey;
+      // Up to three image-led picks per busy day (boosted events sort first);
+      // everything else is a compact, scannable row.
+      var picks = [];
+      if (gs.length >= 5) {
+        gs.forEach(function (g) { if (picks.length < 3 && safeUrl(g.rep.r.image_url)) picks.push(g); });
+        if (picks.length < 3) picks = [];
+      }
+      var rest = gs.filter(function (g) { return picks.indexOf(g) < 0; });
+      html += '<section class="day" aria-label="' + esc(h.name + ' ' + h.sub) + '">' +
+        '<header class="dayhead"><h2>' + esc(h.name) + '</h2>' +
+          (h.sub ? '<span class="dh-date">' + esc(h.sub) + '</span>' : '') +
+          (h.wknd ? '<span class="dh-tag">Weekend</span>' : '') +
+          '<span class="dh-count">' + counts[k] + (more ? '+' : '') + ' event' + (counts[k] === 1 && !more ? '' : 's') + '</span>' +
+        '</header>' +
+        (picks.length ? '<div class="picks">' + picks.map(function (g) { return cardHtml(g, { timeOnly: true }); }).join('') + '</div>' : '') +
+        rowsBlock(rest, di === 0 && !state.savedView) +
+      '</section>';
+    });
+    return html;
+  }
+  function renderDayStrip() {
+    if (!els.dayStrip) return;
+    var today = startOfDay(new Date());
+    var on = state.when === 'date' ? state.date
+      : state.when === 'today' ? ymd(today)
+      : state.when === 'tomorrow' ? ymd(addDays(today, 1)) : null;
+    var fmtDow = new Intl.DateTimeFormat([], { weekday: 'short' });
+    var html = '<button class="ds-day ds-all' + (state.when === 'all' ? ' is-on' : '') + '" data-day="" aria-pressed="' + (state.when === 'all') + '"><small>Any day</small><b>All</b></button>';
+    for (var i = 0; i < 14; i++) {
+      var d = addDays(today, i), iso = ymd(d);
+      var wk = d.getDay() === 0 || d.getDay() === 6;
+      html += '<button class="ds-day' + (wk ? ' is-wknd' : '') + (iso === on ? ' is-on' : '') + '" data-day="' + iso + '" aria-pressed="' + (iso === on) + '"' +
+        ' aria-label="' + esc(fmtDayLong.format(d)) + '"><small>' + (i === 0 ? 'Today' : esc(fmtDow.format(d))) + '</small><b>' + d.getDate() + '</b></button>';
+    }
+    els.dayStrip.innerHTML = html;
+    var sel = els.dayStrip.querySelector('.is-on');
+    if (sel && sel.offsetLeft > els.dayStrip.clientWidth) els.dayStrip.scrollLeft = sel.offsetLeft - 60;
   }
 
   var renderedGroups = [];
@@ -777,13 +907,18 @@
     var gs = visibleGroups();
     renderedGroups = gs;
     var html = '';
-    // The grid pages SHOW_STEP cards at a time; the map always gets everything.
-    gs.slice(0, state.shown).forEach(function (g, i) {
-      // App-promo card: once early, then sparingly — every two dozen cards
-      // keeps it visible without feeling like ad inventory.
-      if (i === 9 || (i > 9 && (i - 9) % 24 === 0)) html += promoHtml();
-      html += cardHtml(g);
-    });
+    // The list pages SHOW_STEP events at a time; the map always gets everything.
+    var shown = gs.slice(0, state.shown);
+    if (isAgenda()) {
+      els.grid.className = 'agenda';
+      html = agendaHtml(gs, shown);
+    } else {
+      els.grid.className = 'grid';
+      shown.forEach(function (g, i) {
+        if (i === 8 && !state.savedView) html += inlineAppHtml();
+        html += cardHtml(g);
+      });
+    }
     els.grid.innerHTML = html;
     renderMeta(gs.length);
     renderStates(gs.length);
@@ -791,6 +926,7 @@
     // In the saved view the rendered set IS the upcoming-saves set — use it as
     // the source of truth for the badge (self-corrects any optimistic drift).
     if (state.savedView && !state.loading) { state.savedUpcoming = gs.length; renderSavedBadge(); }
+    syncTabs();
     paintPlan();   // re-apply group-shortlist selection after the grid re-renders
     adminAfterRender();   // inject admin affordances + merge-selection rings
   }
@@ -931,6 +1067,7 @@
   function resetAndLoad() {
     state.rows = []; state.rowIds = {}; state.cursor = undefined;
     state.shown = SHOW_STEP;
+    els.grid.className = isAgenda() ? 'agenda' : 'grid';
     els.grid.innerHTML = skeletonHtml();
     els.stateBox.hidden = true; els.loadMoreWrap.hidden = true;
     els.resultMeta.textContent = 'Loading events…';
@@ -1267,6 +1404,17 @@
     els.loadMoreWrap.hidden = els.loadMoreWrap.hidden || v === 'map';
     syncHash();
     if (v === 'map') renderMap(renderedGroups);
+    syncTabs();
+  }
+  // Phone bottom tab bar mirrors the top-bar controls it replaces.
+  function syncTabs() {
+    if (!els.tabBar) return;
+    var active = planMode ? 'plan' : state.savedView ? 'saved' : state.view === 'map' ? 'map' : 'events';
+    els.tabBar.querySelectorAll('[data-tab]').forEach(function (b) {
+      var on = b.getAttribute('data-tab') === active;
+      b.classList.toggle('is-on', on);
+      if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(on));
+    });
   }
   function setSavedView(on) {
     state.savedView = on;
@@ -1274,6 +1422,7 @@
     els.savedNote.hidden = !on;
     els.heroband.style.display = on ? 'none' : '';
     els.filterbar.style.display = on ? 'none' : '';
+    document.body.classList.toggle('saved-view', on);
     if (on) setPanel(null);
     resetAndLoad();
   }
@@ -1307,6 +1456,7 @@
     els.filtersLabel.textContent = n ? 'Filters · ' + n : 'Filters';
     els.filtersPill.classList.toggle('has-active', n > 0);
     els.filtersClear.hidden = n === 0;
+    renderDayStrip();
   }
   els.locPill.addEventListener('click', function () {
     if (openPanel !== 'loc') renderCityList();
@@ -1612,19 +1762,44 @@
     else closeDetail();
   });
 
-  // app banner
-  try {
-    if (!sessionStorage.getItem('hapsBannerHid')) els.appBanner.hidden = false;
-  } catch (e) { els.appBanner.hidden = false; }
-  els.bannerClose.addEventListener('click', function () {
-    els.appBanner.hidden = true;
-    try { sessionStorage.setItem('hapsBannerHid', '1'); } catch (e) { /* ok */ }
+  // day strip: tap a day to show just that day; tap it again (or "All") for everything
+  if (els.dayStrip) els.dayStrip.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-day]');
+    if (!b) return;
+    var iso = b.getAttribute('data-day');
+    if (!iso || b.classList.contains('is-on')) { state.when = 'all'; state.date = null; }
+    else { state.when = 'date'; state.date = iso; }
+    els.timeChips.querySelectorAll('[data-when]').forEach(function (x) {
+      x.classList.toggle('is-on', x.getAttribute('data-when') === state.when);
+    });
+    setDateChipUi();
+    updatePills();
+    setPanel(null);
+    resetAndLoad();
+  });
+
+  // phone tab bar
+  if (els.tabBar) els.tabBar.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-tab]');
+    if (!b) return;
+    var tab = b.getAttribute('data-tab');
+    if (tab === 'plan') { var pt = document.querySelector('.plan-toggle'); if (pt) pt.click(); return; }
+    if (planMode) setPlanMode(false);
+    if (tab === 'saved') { if (!state.savedView) setSavedView(true); return; }
+    if (state.savedView) setSavedView(false);
+    if (tab === 'map') setView('map');
+    else if (state.view === 'map') setView('grid');
+    else scrollToTop();
   });
 
   // keep the filter bar pinned right below the real topbar height
   function setTopbarVar() {
     document.documentElement.style.setProperty('--topbar-h',
       document.querySelector('.topbar').offsetHeight + 'px');
+    // phones: the filter pills stick under the topbar, so day headings stick below both
+    var fb = els.filterbar && getComputedStyle(els.filterbar).position === 'sticky' && innerWidth < 1024
+      ? els.filterbar.offsetHeight : 0;
+    document.documentElement.style.setProperty('--filterbar-h', fb + 'px');
   }
   window.addEventListener('resize', setTopbarVar);
   setTopbarVar();
@@ -1682,6 +1857,7 @@
     planToggle.classList.toggle('is-on', on);
     planToggle.setAttribute('aria-pressed', String(on));
     document.body.classList.toggle('plan-mode', on);
+    syncTabs();
     paintPlan();
     renderPlanBar();
   }
@@ -1802,6 +1978,7 @@
     els.savedNote.hidden = false;
     els.heroband.style.display = 'none';
     els.filterbar.style.display = 'none';
+    document.body.classList.add('saved-view');
   }
   if (state.view === 'map') setView('map');
   resetAndLoad();

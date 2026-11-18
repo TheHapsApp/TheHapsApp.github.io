@@ -42,7 +42,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&display=swap">
 <link rel="stylesheet" href="/assets/tokens.css?v=1">
-<link rel="stylesheet" href="/events/events.css?v=12">
+<link rel="stylesheet" href="/events/events.css?v=13">
 <script src="/assets/analytics.js"></script>
 </head>
 <body>
@@ -76,12 +76,12 @@
     </div>
   </header>
 
+  <div class="layout">
   <section class="heroband" id="heroband">
-    <h1>What's happening <span id="heroCity">near you</span></h1>
-    <p>Concerts, markets, gallery openings and family days, gathered from local venue and city calendars and updated every day.</p>
+    <h1>Things to do <span id="heroCity">near you</span></h1>
   </section>
 
-  <div class="filterbar" id="filterbar">
+  <div class="filterbar" id="filterbar" aria-label="Filters">
     <div class="pills-row">
       <button class="pill" id="locPill" aria-expanded="false" aria-controls="panelLoc">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg><span class="pill-label" id="locLabel">Salt Lake City · 25 mi</span><svg class="caret" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -95,6 +95,7 @@
     </div>
 
     <div class="panel" id="panelLoc" hidden aria-label="Location">
+      <h3 class="panel-h rail-only">Where</h3>
       <button class="loc-geo" id="useGeo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5"/></svg> Use my location</button>
       <div class="loc-cities" id="cityList"></div>
       <h3 class="panel-h">Search radius · <output id="radiusVal" for="radiusSlider">25 mi</output></h3>
@@ -107,6 +108,7 @@
     </div>
 
     <div class="panel" id="panelTime" hidden aria-label="When">
+      <h3 class="panel-h rail-only">When</h3>
       <div class="chip-wrap" id="timeChips" role="group" aria-label="When">
         <button class="chip is-on" data-when="all">Anytime</button>
         <button class="chip" data-when="now">Now</button>
@@ -131,6 +133,7 @@
   </div>
 
   <main class="content">
+    <div class="daystrip" id="dayStrip" role="group" aria-label="Pick a day"></div>
     <div class="toolbar">
       <p class="result-meta" id="resultMeta">Loading events…</p>
       <div class="toolbar-right">
@@ -141,7 +144,7 @@
           </select>
         </label>
         <div class="view-toggle" role="group" aria-label="View">
-          <button id="viewGrid" class="is-on" aria-pressed="true">Grid</button>
+          <button id="viewGrid" class="is-on" aria-pressed="true">List</button>
           <button id="viewMap" aria-pressed="false">Map</button>
         </div>
       </div>
@@ -160,12 +163,15 @@
     </div>
     <div id="sentinel" aria-hidden="true"></div>
   </main>
-
-  <div class="app-banner" id="appBanner" hidden>
-    <span><strong>Haps for iPhone &amp; Android</strong><span class="ab-long">. Sync your saves and get reminders before things start.</span></span>
-    <a href="/beta">Get the app</a>
-    <button id="bannerClose" aria-label="Dismiss">&times;</button>
   </div>
+
+  <nav class="tabbar" id="tabBar" aria-label="Sections">
+    <button data-tab="events" class="is-on" aria-pressed="true"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Events</button>
+    <button data-tab="map" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg>Map</button>
+    <button data-tab="saved" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Saved<span class="tab-count" id="tabSavedCount" hidden>0</span></button>
+    <button data-tab="plan" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></svg>Plan</button>
+    <a data-tab="app" href="/beta"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>Get app</a>
+  </nav>
 
   <dialog class="cal-dialog" id="calDialog" aria-label="Pick a date">
     <div class="cal-head">
@@ -230,6 +236,6 @@
   </noscript>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2"></script>
-  <script src="/events/app.js?v=19"></script>
+  <script src="/events/app.js?v=20"></script>
 </body>
 </html>
