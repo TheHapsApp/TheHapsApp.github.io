@@ -124,6 +124,71 @@ const CATS = {
   'service': ['Service', '💗'], 'singles': ['Singles', '💘'], 'teens': ['Teens', '🎮']
 };
 
+/* Niche "topic" landing pages: keyword matches on the event title (and the
+ * one-line summary where `inSummary`), not categories — these mirror what
+ * people actually search ("trivia night salt lake", "turkey trot utah",
+ * "christmas lights provo"). Each city's page only exists while it has
+ * >= CAT_PAGE_MIN_GROUPS collapsed events in TOPIC_WINDOW_DAYS, so seasonal
+ * topics (christmas, holiday-markets, runs-races) come and go on their own.
+ * Title-only topics are the ones whose words show up loosely in summaries
+ * ("a romantic comedy", "trivia program"). Regexes were tuned against the
+ * live catalog — check sample matches before adding one. */
+const TOPIC_WINDOW_DAYS = 60;
+const TOPICS = [
+  { slug: 'christmas', q: 'christmas', label: 'Christmas', emoji: '🎄', inSummary: true, year: true,
+    re: /christmas|holiday lights|festival of trees|\bsanta\b(?! (clara|fe|monica|barbara|cruz|rosa|ana)\b)|nutcracker|tree lighting|hanukkah|menorah|winter wonderland|light display/i,
+    h1: 'Christmas & holiday events in', head: 'Christmas Events in {city} {year} — Lights, Santa & Shows',
+    intro: 'Light displays, tree lightings, visits with Santa, Nutcracker performances, carolers and holiday concerts — every Christmas event we know of around {city}, updated daily through the season.' },
+  { slug: 'holiday-markets', q: 'market', label: 'Holiday markets', emoji: '🎁', inSummary: false, year: true,
+    re: /craft (fair|show|market|bazaar|boutique)|holiday (market|bazaar|boutique|craft)|christmas (market|bazaar|boutique|gift)|makers? market|artisan (market|fair)|vendor (fair|market)/i,
+    h1: 'Holiday markets & craft fairs in', head: 'Holiday Markets & Craft Fairs in {city} {year}',
+    intro: 'Shop local makers, artisans and small vendors at holiday markets, craft fairs and boutiques around {city} — dates, hours and locations in one place.' },
+  { slug: 'runs-races', q: '5k', label: 'Fun runs & 5Ks', emoji: '🏅', inSummary: false,
+    re: /\b(5|10)k\b|half marathon|\bmarathon\b|fun run|turkey trot|gobbler|jingle (run|bell run)|ugly sweater run/i,
+    h1: 'Fun runs, 5Ks & races in', head: 'Fun Runs, 5Ks & Races in {city} | Haps',
+    intro: 'Turkey trots, holiday fun runs, 5Ks, 10Ks and half marathons around {city} — find a race for every pace, from kids’ 1Ks to serious courses.' },
+  { slug: 'trivia', q: 'trivia', label: 'Trivia nights', emoji: '🧠', inSummary: false,
+    re: /\btrivia\b|quiz night|pub quiz/i,
+    h1: 'Trivia nights in', head: 'Trivia Nights in {city} — Weekly Pub Quiz Schedule | Haps',
+    intro: 'Weekly trivia and pub quiz nights at bars, breweries and cafés around {city}. Grab a team and find your night.' },
+  { slug: 'comedy', q: 'comedy', label: 'Comedy', emoji: '😂', inSummary: false,
+    re: /\bcomedy\b|stand-?up comed|\bimprov\b|comedian/i,
+    h1: 'Comedy shows & improv in', head: 'Comedy Shows & Improv in {city} | Haps',
+    intro: 'Stand-up, improv, sketch and clean comedy shows around {city} — touring headliners and local favorites.' },
+  { slug: 'karaoke', q: 'karaoke', label: 'Karaoke', emoji: '🎤', inSummary: false,
+    re: /\bkaraoke\b/i,
+    h1: 'Karaoke nights in', head: 'Karaoke Nights in {city} | Haps',
+    intro: 'Where to sing around {city} — karaoke nights at bars and venues, including all-ages options.' },
+  { slug: 'dance', q: 'dance', label: 'Dancing', emoji: '💃', inSummary: false,
+    re: /\bsalsa\b|swing danc|line danc|ballroom|contra danc|\bbachata\b|dance (night|party|social)|square danc|country swing/i,
+    h1: 'Dance classes, socials & dance nights in', head: 'Salsa, Swing & Line Dancing in {city} | Haps',
+    intro: 'Salsa, bachata, swing, line dancing, contra and ballroom — beginner classes, social dances and performances around {city}.' },
+  { slug: 'paint-pottery', q: 'pottery', label: 'Paint & pottery', emoji: '🖌️', inSummary: true,
+    re: /paint (night|party|and sip|& sip|n sip|your own)|sip (and|&) paint|pottery|ceramic|wheel throwing|craft night|wreath making|candle making/i,
+    h1: 'Paint nights, pottery & craft workshops in', head: 'Paint Nights, Pottery & Craft Workshops in {city} | Haps',
+    intro: 'Paint-and-sip nights, pottery and ceramics workshops, wreath making and adult craft nights around {city} — a fun night out or a creative date.' },
+  { slug: 'yoga', q: 'yoga', label: 'Yoga', emoji: '🧘', inSummary: false,
+    re: /\byoga\b/i,
+    h1: 'Yoga classes & community yoga in', head: 'Yoga Classes & Free Community Yoga in {city} | Haps',
+    intro: 'Community and drop-in yoga around {city} — free classes, hot yoga, chair yoga, yoga in the park and more.' },
+  { slug: 'storytime', q: 'storytime', label: 'Storytime', emoji: '📖', inSummary: false,
+    re: /story ?time/i,
+    h1: 'Storytimes for kids in', head: 'Library Storytimes for Kids & Toddlers in {city} | Haps',
+    intro: 'Baby, toddler, preschool and bilingual storytimes at libraries and bookstores around {city} — almost all free.' },
+  { slug: 'book-clubs', q: 'book club', label: 'Book clubs', emoji: '📚', inSummary: false,
+    re: /book club|book group/i,
+    h1: 'Book clubs in', head: 'Book Clubs in {city} — Meetups Open to New Members | Haps',
+    intro: 'Book clubs meeting at libraries, bookstores and cafés around {city} — fiction, nonfiction, graphic novels, teen and kids clubs.' },
+  { slug: 'art-walks', q: 'art stroll', label: 'Art walks', emoji: '🖼️', inSummary: false,
+    re: /art (walk|stroll)|gallery stroll|gallery night|artabout/i,
+    h1: 'Art walks & gallery strolls in', head: 'Art Walks & Gallery Strolls in {city} | Haps',
+    intro: 'Monthly gallery strolls and art walks around {city} — meet artists, see new shows, most of them free.' },
+  { slug: 'festivals', q: 'festival', label: 'Festivals', emoji: '🎪', inSummary: false, year: true,
+    re: /\bfestival\b|\bfest\b/i,
+    h1: 'Festivals in', head: 'Festivals in {city} {year} | Haps',
+    intro: 'Upcoming festivals around {city} — food, film, music, lights, culture and seasonal celebrations.' }
+];
+
 // ---------- utils ----------
 function esc(s) {
   return String(s == null ? '' : s)
@@ -502,7 +567,10 @@ h2{font-size:1.15rem;margin:1.6rem 0 .6rem}
 .ev-title:hover{color:var(--violet)}
 .ev-venue{display:block;color:var(--muted);font-size:.88rem}
 .ev .tags{margin:.35rem 0 0}
-.quick{display:flex;flex-wrap:wrap;gap:.45rem;margin:.8rem 0 .4rem}
+.quick{display:flex;flex-wrap:wrap;gap:.45rem;margin:.8rem 0 .4rem;align-items:center}
+.qlabel{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-right:.2rem}
+.more{margin-top:1.6rem}.more h2{font-size:1.05rem;margin:0 0 .3rem}
+.intro{margin:.2rem 0 .8rem}
 .crumbs{font-size:.85rem;color:var(--muted);margin:.2rem 0 .6rem}.crumbs a{color:var(--muted)}
 .cities{margin-top:1.6rem;color:var(--muted);font-size:.9rem}.cities a{color:var(--violet);text-decoration:none;font-weight:600}
 `;
@@ -609,7 +677,7 @@ function pageHtml(it, group, related = '') {
           ` · <a href="/events/${near.slug}/this-weekend/">This weekend →</a></p>`
         : '';
     })()}
-    <div class="appcta"><strong>Take it with you.</strong> Save this event in the Haps app and get a reminder before it starts. <a href="/beta">Get the app →</a></div>
+  <div class="appcta"><strong>Take it with you.</strong> Save this event in the Haps app and get a reminder before it starts. <a href="/beta">Get the app →</a></div>
   </article>
 </main>
 <footer class="footer">
@@ -663,8 +731,9 @@ function itemListLd(name, urls) {
 }
 
 function landingHtml(o) {
-  // o: { path, headTitle, metaDesc, h1, lede, crumb, quick, picked:{rows,urls,total},
-  //      emptyMsg, browseHash, city }
+  // o: { path, headTitle, metaDesc, h1, lede, intro?, crumb, quick? (hub nav, top),
+  //      more? (sibling-page nav, bottom), picked:{rows,urls,total}, emptyMsg,
+  //      browseHash, city }
   const url = SITE + o.path;
   const list = o.picked.rows.length
     ? `<ol class="ev-list">${o.picked.rows.join('\n')}</ol>` +
@@ -704,12 +773,14 @@ function landingHtml(o) {
   ${o.crumb ? `<nav class="crumbs">${o.crumb}</nav>` : ''}
   <h1>${esc(o.h1)}</h1>
   <p class="lede">${esc(o.lede)}</p>
-  ${o.quick ? `<div class="quick">${o.quick}</div>` : ''}
+  ${o.intro ? `<p class="intro">${esc(o.intro)}</p>` : ''}
+  ${o.quick || ''}
   <div class="actions">
     <a class="btn btn-primary" href="${esc(o.browseHash)}">Browse with filters &amp; map</a>
     <a class="btn" href="/beta">Get the app</a>
   </div>
   ${list}
+  ${o.more ? `<section class="more"><h2>More things to do in ${esc(o.city.name)}</h2>${o.more}</section>` : ''}
   <div class="appcta"><strong>Never miss a thing.</strong> The Haps app learns what you like, syncs your saves, and reminds you before events start. <a href="/beta">Get the app →</a></div>
   <p class="cities">Things to do in: ${others}</p>
 </main>
@@ -759,72 +830,132 @@ function cityPages(city, items) {
     };
   }
 
-  const pages = [];
+  const DAY = 86400e3;
+  const within = days => o => o.start.getTime() <= now + days * DAY;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  const year = tzParts(new Date(), 'America/Denver').y;
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const fill = (t, extra = {}) => t.replace(/\{city\}/g, city.name).replace(/\{year\}/g, year)
+    .replace(/\{(\w+)\}/g, (m, k) => (k in extra ? extra[k] : m));
+
+  /* Page specs first, HTML second: every sub-page links its siblings (the
+   * "More things to do" nav), so the full set must be known before rendering.
+   * group: 'when' | 'topic' | 'cat' — controls nav grouping on the hub. */
+  const specs = [];
+  const add = (group, slug, label, emoji, picked, o) =>
+    specs.push({ group, slug, label, emoji, picked, path: `/events/${city.slug}/${slug}/`, o });
+
   const wkDates = weekendDates();
   const wkSet = new Set(wkDates);
   const wkLabel = weekendLabel(wkDates);
+  const todayStr = localDateStr(new Date(), 'America/Denver');
+  const todayLabel = fmt(new Date(), 'America/Denver', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // --- when ---
+  const today = pick(o => localDateStr(o.start, o.tz) === todayStr, LIST_CAP, { featuredFirst: true });
+  if (today.total >= CAT_PAGE_MIN_GROUPS) add('when', 'today', 'Today', '⏰', today, {
+    headTitle: `Things to Do in ${city.name} Today & Tonight | Haps`,
+    h1: `Things to do in ${city.name} today`,
+    lede: `${plural(today.total, 'event')} around ${city.name} today, ${todayLabel} — from daytime activities to tonight’s shows. Updated daily.`,
+    metaDesc: `What's happening in ${city.name} today and tonight (${todayLabel}): ${today.total} events — live music, family activities, classes, nightlife and more.`,
+    emptyMsg: 'Nothing listed for today — try this weekend.', browseHash: `/#city=${city.browser}&when=today`
+  });
 
   const weekend = pick(o => wkSet.has(localDateStr(o.start, o.tz)), LIST_CAP, { featuredFirst: true });
-  pages.push({
-    path: `/events/${city.slug}/this-weekend/`,
-    mtimeMs: weekend.mtimeMs,
-    html: landingHtml({
-      path: `/events/${city.slug}/this-weekend/`, city, crumb: `${crumb} This weekend`,
-      headTitle: `Things to Do in ${city.name} This Weekend | Haps`,
-      h1: `Things to do in ${city.name} this weekend`,
-      lede: `${weekend.total} event${weekend.total === 1 ? '' : 's'} happening around ${city.name} this weekend (${wkLabel})` +
-        `${weekend.featured ? ' — starting with our top picks' : ''} — updated daily.`,
-      metaDesc: `What's happening in ${city.name} this weekend (${wkLabel}): ${weekend.total} events — concerts, markets, family fun, nightlife and more. Updated daily on Haps.`,
-      picked: weekend, emptyMsg: 'Nothing on the calendar yet — check back soon or browse all upcoming events.',
-      browseHash: `/#city=${city.browser}&when=weekend`
-    })
+  add('when', 'this-weekend', 'This weekend', '🗓️', weekend, {
+    headTitle: `Things to Do in ${city.name} This Weekend | Haps`,
+    h1: `Things to do in ${city.name} this weekend`,
+    lede: `${plural(weekend.total, 'event')} happening around ${city.name} this weekend (${wkLabel})` +
+      `${weekend.featured ? ' — starting with our top picks' : ''} — updated daily.`,
+    metaDesc: `What's happening in ${city.name} this weekend (${wkLabel}): ${weekend.total} events — concerts, markets, family fun, nightlife and more. Updated daily on Haps.`,
+    emptyMsg: 'Nothing on the calendar yet — check back soon or browse all upcoming events.',
+    browseHash: `/#city=${city.browser}&when=weekend`
   });
 
-  const free = pick(o => o.r.is_free === true && o.start.getTime() <= now + FREE_WINDOW_DAYS * 86400e3);
-  if (free.total >= CAT_PAGE_MIN_GROUPS) {
-    pages.push({
-      path: `/events/${city.slug}/free/`,
-      mtimeMs: free.mtimeMs,
-      html: landingHtml({
-        path: `/events/${city.slug}/free/`, city, crumb: `${crumb} Free`,
-        headTitle: `Free Things to Do in ${city.name} | Haps`,
-        h1: `Free things to do in ${city.name}`,
-        lede: `${free.total} free events coming up around ${city.name} in the next ${FREE_WINDOW_DAYS} days — no ticket required.`,
-        metaDesc: `${free.total} free events in ${city.name}, Utah — free concerts, markets, family activities and more over the next ${FREE_WINDOW_DAYS} days. Updated daily on Haps.`,
-        picked: free, emptyMsg: 'No free events listed right now — check back soon.',
-        browseHash: `/#city=${city.browser}&free=1`
-      })
-    });
-  }
+  const week = pick(o => o.start.getTime() >= now - GRACE_MS && within(7)(o), LIST_CAP, { featuredFirst: true });
+  if (week.total >= CAT_PAGE_MIN_GROUPS) add('when', 'this-week', 'This week', '📆', week, {
+    headTitle: `Things to Do in ${city.name} This Week | Haps`,
+    h1: `Things to do in ${city.name} this week`,
+    lede: `${plural(week.total, 'event')} around ${city.name} in the next 7 days — updated daily.`,
+    metaDesc: `${week.total} events in ${city.name}, Utah over the next 7 days — concerts, shows, family activities, classes and more. Updated daily on Haps.`,
+    emptyMsg: 'Nothing listed this week — check back soon.', browseHash: `/#city=${city.browser}&when=week`
+  });
 
-  const catPages = [];
+  const free = pick(o => o.r.is_free === true && within(FREE_WINDOW_DAYS)(o));
+  if (free.total >= CAT_PAGE_MIN_GROUPS) add('when', 'free', 'Free', '💸', free, {
+    headTitle: `Free Things to Do in ${city.name} | Haps`,
+    h1: `Free things to do in ${city.name}`,
+    lede: `${free.total} free events coming up around ${city.name} in the next ${FREE_WINDOW_DAYS} days — no ticket required.`,
+    metaDesc: `${free.total} free events in ${city.name}, Utah — free concerts, markets, family activities and more over the next ${FREE_WINDOW_DAYS} days. Updated daily on Haps.`,
+    emptyMsg: 'No free events listed right now — check back soon.', browseHash: `/#city=${city.browser}&free=1`
+  });
+
+  const freeKids = pick(o => o.r.is_free === true && o.slugs.includes('family-kids') && within(FREE_WINDOW_DAYS)(o));
+  if (freeKids.total >= CAT_PAGE_MIN_GROUPS) add('when', 'free-kids', 'Free with kids', '🧸', freeKids, {
+    headTitle: `Free Things to Do with Kids in ${city.name} | Haps`,
+    h1: `Free things to do with kids in ${city.name}`,
+    lede: `${plural(freeKids.total, 'free family event')} around ${city.name} in the next ${FREE_WINDOW_DAYS} days.`,
+    intro: `Storytimes, library programs, park events, family festivals and kids’ activities around ${city.name} that don’t cost a thing.`,
+    metaDesc: `${freeKids.total} free kids' and family events in ${city.name}, Utah — storytimes, crafts, festivals and more over the next ${FREE_WINDOW_DAYS} days.`,
+    emptyMsg: 'No free family events listed right now — check back soon.',
+    browseHash: `/#city=${city.browser}&cat=family-kids&free=1`
+  });
+
+  // --- topics (keyword) ---
+  TOPICS.forEach(t => {
+    const picked = pick(o => within(TOPIC_WINDOW_DAYS)(o) &&
+      t.re.test(t.inSummary ? `${o.r.title} ${o.r.one_line_summary || ''}` : o.r.title));
+    if (picked.total < CAT_PAGE_MIN_GROUPS) return;
+    const h1 = `${t.h1} ${city.name}`;
+    add('topic', t.slug, t.label, t.emoji, picked, {
+      headTitle: fill(t.head),
+      h1: cap(h1),
+      lede: `${plural(picked.total, 'upcoming event')} around ${city.name} — updated daily.`,
+      intro: fill(t.intro),
+      metaDesc: `${fill(t.intro)} ${picked.total} upcoming — updated daily on Haps.`,
+      emptyMsg: 'Nothing listed right now — check back soon.',
+      browseHash: `/#city=${city.browser}&q=${encodeURIComponent(t.q)}`
+    });
+  });
+
+  // --- categories ---
   Object.keys(CATS).forEach(slug => {
-    const picked = pick(o => o.slugs.includes(slug) && o.start.getTime() <= now + HUB_WINDOW_DAYS * 86400e3);
+    const picked = pick(o => o.slugs.includes(slug) && within(HUB_WINDOW_DAYS)(o));
     if (picked.total < CAT_PAGE_MIN_GROUPS) return;
     const phrase = CAT_PHRASES[slug] || `${CATS[slug][0]} events in`;
-    const h1 = `${phrase} ${city.name}`;
-    catPages.push({ slug, label: CATS[slug][0], emoji: CATS[slug][1], count: picked.total });
-    pages.push({
-      path: `/events/${city.slug}/${slug}/`,
-      mtimeMs: picked.mtimeMs,
-      html: landingHtml({
-        path: `/events/${city.slug}/${slug}/`, city, crumb: `${crumb} ${esc(CATS[slug][0])}`,
-        headTitle: `${h1.charAt(0).toUpperCase() + h1.slice(1)} | Haps`,
-        h1: h1.charAt(0).toUpperCase() + h1.slice(1),
-        lede: `${picked.total} upcoming ${CATS[slug][0].toLowerCase()} event${picked.total === 1 ? '' : 's'} around ${city.name} — updated daily.`,
-        metaDesc: `${picked.total} upcoming ${CATS[slug][0].toLowerCase()} events in ${city.name}, Utah. Dates, times, venues and tickets — updated daily on Haps.`,
-        picked, emptyMsg: 'Nothing listed right now — check back soon.',
-        browseHash: `/#city=${city.browser}&cat=${slug}`
-      })
+    const h1 = cap(`${phrase} ${city.name}`);
+    add('cat', slug, CATS[slug][0], CATS[slug][1], picked, {
+      headTitle: `${h1} | Haps`, h1,
+      lede: `${picked.total} upcoming ${CATS[slug][0].toLowerCase()} event${picked.total === 1 ? '' : 's'} around ${city.name} — updated daily.`,
+      metaDesc: `${picked.total} upcoming ${CATS[slug][0].toLowerCase()} events in ${city.name}, Utah. Dates, times, venues and tickets — updated daily on Haps.`,
+      emptyMsg: 'Nothing listed right now — check back soon.',
+      browseHash: `/#city=${city.browser}&cat=${slug}`
     });
   });
 
-  const hub = pick(o => o.start.getTime() <= now + HUB_WINDOW_DAYS * 86400e3);
-  let quick = `<a class="pill is-on" href="/events/${city.slug}/this-weekend/">🗓️ This weekend</a>`;
-  if (free.total >= CAT_PAGE_MIN_GROUPS) quick += `<a class="pill" href="/events/${city.slug}/free/">💸 Free</a>`;
-  catPages.sort((a, b) => b.count - a.count).forEach(c => {
-    quick += `<a class="pill" href="/events/${city.slug}/${c.slug}/">${c.emoji} ${esc(c.label)}</a>`;
-  });
+  // Nav pills, grouped. `current` marks the page being rendered.
+  const GROUPS = [['when', 'When'], ['topic', 'Popular now'], ['cat', 'Categories']];
+  const ordered = g => {
+    const list = specs.filter(x => x.group === g);
+    return g === 'when' ? list : list.slice().sort((a, b) => b.picked.total - a.picked.total);
+  };
+  const nav = current => GROUPS.map(([g, label]) => {
+    const list = ordered(g);
+    if (!list.length) return '';
+    return `<div class="quick"><span class="qlabel">${label}</span>` + list.map(x =>
+      `<a class="pill${x.path === current ? ' is-on' : ''}" href="${x.path}">${x.emoji} ${esc(x.label)}</a>`).join('') + '</div>';
+  }).join('');
+
+  const pages = specs.map(x => ({
+    path: x.path,
+    mtimeMs: x.picked.mtimeMs,
+    html: landingHtml(Object.assign({
+      path: x.path, city, crumb: `${crumb} ${esc(x.label)}`,
+      picked: x.picked, more: nav(x.path)
+    }, x.o))
+  }));
+
+  const hub = pick(within(HUB_WINDOW_DAYS));
   pages.unshift({
     path: hubPath,
     mtimeMs: hub.mtimeMs,
@@ -834,7 +965,7 @@ function cityPages(city, items) {
       h1: `Things to do in ${city.name}`,
       lede: city.blurb,
       metaDesc: `Looking for things to do in ${city.name}? ${hub.total} upcoming events — concerts, festivals, food, family fun, nightlife and more. Updated daily on Haps.`,
-      quick,
+      quick: nav(hubPath),
       picked: hub, emptyMsg: 'Nothing listed right now — check back soon.',
       browseHash: `/#city=${city.browser}`
     })
