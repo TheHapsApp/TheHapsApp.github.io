@@ -15,114 +15,111 @@
 <meta property="og:site_name" content="Haps">
 <meta property="og:title" content="Check out this weekend plan on Haps">
 <meta property="og:description" content="A friend shortlisted a few events. Tap to see the plan — and build your own on Haps.">
-<meta property="og:image" content="https://thehaps.app/assets/og.png">
+<meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta property="og:url" content="https://thehaps.app/shortlist.html">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#6d28d9">
+<meta name="theme-color" content="#fbfbf9">
 
-<link rel="icon" href="https://thehaps.app/favicon.ico">
+<link rel="icon" href="/assets/icon-64.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&display=swap">
+<link rel="stylesheet" href="/assets/tokens.css?v=1">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-  :root{
-    --violet:#6d28d9; --violet-2:#9333ea; --fuchsia:#c026d3;
-    --ink:#1b1430; --body:#2c2640; --muted:#6b6580; --line:#e9e4f2;
-    --bg:#faf8ff; --card:#fff;
-    --shadow:0 2px 10px rgba(27,20,48,.07); --shadow-lift:0 10px 28px rgba(27,20,48,.16);
-    --radius:18px; --maxw:1180px;
-  }
+  /* Tokens come from /assets/tokens.css (shared with thehaps.app). */
+  :root{ --maxw:1180px; }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
-    color:var(--body); background:var(--bg);
-    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text); background:var(--paper);
+    font:16px/1.55 var(--font-body);
     -webkit-font-smoothing:antialiased;
-    /* leave room so the sticky banner never covers the last card */
     padding-bottom:env(safe-area-inset-bottom);
   }
+  :focus-visible{outline:2px solid var(--brand); outline-offset:2px}
 
   /* ---- Header ---- */
-  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 1rem}
   .topbar{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:1rem; max-width:var(--maxw); margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    padding:.8rem 1rem; max-width:var(--maxw); margin:0 auto;
   }
-  .brand{display:flex; align-items:center; gap:.5rem; font-weight:800; color:var(--ink); text-decoration:none; font-size:1.15rem}
-  .brand .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--violet),var(--fuchsia));display:inline-block}
+  .brand{display:flex; align-items:center; gap:.5rem; color:var(--ink); text-decoration:none;
+    font-family:var(--font-display); font-weight:800; font-stretch:80%; font-size:1.4rem; letter-spacing:-.01em}
+  .brand img{width:28px; height:28px; border-radius:7px}
   .share-btn{
-    border:1px solid var(--line); background:#fff; color:var(--violet); font-weight:700;
-    border-radius:999px; padding:.5rem 1rem; cursor:pointer; font-size:.9rem;
+    border:1px solid var(--line-strong); background:var(--surface); color:var(--ink); font-weight:600;
+    border-radius:var(--r-sm); padding:.45rem .85rem; cursor:pointer; font-size:.9rem;
     display:inline-flex; align-items:center; gap:.4rem;
   }
-  .share-btn:hover{background:#f3edff}
+  .share-btn:hover{border-color:var(--ink)}
 
-  .hero{max-width:var(--maxw); margin:0 auto; padding:.5rem 1rem 1.2rem}
-  .hero .eyebrow{color:var(--violet); font-weight:800; letter-spacing:.06em; text-transform:uppercase; font-size:.72rem}
-  .hero h1{margin:.25rem 0 .35rem; color:var(--ink); font-size:clamp(1.5rem,4vw,2.1rem); line-height:1.15}
-  .hero .meta{color:var(--muted); font-size:.9rem}
+  .hero{max-width:var(--maxw); margin:0 auto; padding:1rem 1rem 1.4rem}
+  .hero .eyebrow{display:inline-block; background:var(--mark); color:var(--mark-ink); font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; font-size:.66rem; padding:.18rem .45rem; border-radius:var(--r-sm)}
+  .hero h1{margin:.6rem 0 .4rem; color:var(--ink); text-wrap:balance;
+    font-family:var(--font-display); font-weight:800; font-stretch:72%;
+    font-size:clamp(2rem,6vw,3.2rem); line-height:1; text-transform:uppercase}
+  .hero .meta{color:var(--muted); font-size:.92rem}
 
-  /* ---- Grid (mirrors events.css) ---- */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:1rem; padding:0 1rem 2rem; max-width:var(--maxw); margin:0 auto}
-
-  .card{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    overflow:hidden; cursor:pointer; box-shadow:var(--shadow); text-decoration:none; color:inherit;
-    transition:transform .14s ease, box-shadow .14s ease; display:flex; flex-direction:column; position:relative;
-  }
-  .card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lift)}
-  .card:focus-visible{outline:2px solid var(--violet); outline-offset:2px}
-  .card-media{position:relative; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg,var(--g1,#7c3aed),var(--g2,#c026d3))}
-  .card-media img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
-  .fallback-emoji{font-size:2.6rem; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
-  .date-badge{position:absolute; top:.6rem; left:.6rem; z-index:2; background:rgba(255,255,255,.96); color:var(--ink);
-    border-radius:10px; padding:.28rem .55rem; text-align:center; line-height:1.05; font-weight:800; font-size:.68rem;
-    letter-spacing:.04em; text-transform:uppercase; box-shadow:0 2px 8px rgba(0,0,0,.18)}
-  .date-badge .dnum{display:block; font-size:1.05rem}
-  .flag-badge{position:absolute; top:.6rem; right:.6rem; z-index:2; background:rgba(255,255,255,.96); color:#15803d;
-    border-radius:999px; padding:.2rem .55rem; font-size:.68rem; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.18)}
-  .card-body{padding:.8rem .9rem .95rem; display:flex; flex-direction:column; gap:.3rem; flex:1}
-  .card-when{color:var(--violet); font-weight:700; font-size:.8rem}
-  .card-title{margin:0; color:var(--ink); font-size:1.02rem; line-height:1.3; font-weight:700;
+  /* ---- Grid (mirrors events.css cards) ---- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:1.6rem 1.1rem; padding:0 1rem 2rem; max-width:var(--maxw); margin:0 auto}
+  .card{text-decoration:none; color:inherit; display:flex; flex-direction:column; position:relative}
+  .card:focus-visible{outline-offset:4px}
+  .card-media{position:relative; aspect-ratio:16/10; overflow:hidden; border-radius:var(--r-md); background:var(--sunk);
+    display:flex; align-items:center; justify-content:center}
+  .card-media img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .25s ease}
+  .card:hover .card-media img{transform:scale(1.03)}
+  .fallback-label{color:var(--muted); font-family:var(--font-display); font-weight:700; font-stretch:75%;
+    font-size:1.05rem; text-transform:uppercase; letter-spacing:.02em; padding:0 1rem; text-align:center}
+  .date-badge{position:absolute; top:.55rem; left:.55rem; z-index:2; background:var(--surface); color:var(--ink);
+    border-radius:var(--r-sm); padding:.3rem .5rem .32rem; text-align:center; line-height:1; font-weight:600; font-size:.62rem;
+    letter-spacing:.08em; text-transform:uppercase}
+  .date-badge .dnum{display:block; margin-top:.12rem; font-family:var(--font-display); font-weight:800; font-stretch:70%; font-size:1.35rem; letter-spacing:0}
+  .flag-badge{position:absolute; bottom:.55rem; left:.55rem; z-index:2; background:var(--mark); color:var(--mark-ink);
+    border-radius:var(--r-sm); padding:.2rem .45rem; font-size:.64rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase}
+  .card-body{padding:.65rem .1rem 0; display:flex; flex-direction:column; gap:.2rem; flex:1}
+  .card-when{color:var(--brand); font-family:var(--font-display); font-weight:700; font-stretch:85%; font-size:.8rem; letter-spacing:.04em; text-transform:uppercase}
+  .card-title{margin:0; color:var(--ink); font-size:1.02rem; line-height:1.3; font-weight:650;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
-  .card-venue{color:var(--muted); font-size:.85rem; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
-  .card-tags{display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.15rem}
-  .tag{font-size:.72rem; font-weight:700; color:var(--violet); background:#f3edff; border-radius:999px; padding:.18rem .55rem}
+  .card:hover .card-title{text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px}
+  .card-venue{color:var(--muted); font-size:.86rem; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
+  .card-tags{font-size:.8rem; color:var(--muted)}
+  .tag{font-weight:500}
 
   /* ---- States ---- */
-  .state{max-width:560px; margin:4rem auto; text-align:center; padding:0 1.5rem}
-  .state h2{color:var(--ink); margin:.2rem 0 .5rem}
+  .state{max-width:560px; margin:3rem auto; padding:0 1rem}
+  .state h2{color:var(--ink); margin:.2rem 0 .5rem; font-family:var(--font-display); font-weight:800; font-stretch:75%; font-size:1.8rem; text-transform:uppercase; line-height:1.05}
   .state p{color:var(--muted)}
-  .state a{color:var(--violet); font-weight:700}
-  .skeleton .card-media{background:linear-gradient(110deg,#efeaf8 8%,#f7f4fd 18%,#efeaf8 33%); background-size:200% 100%; animation:sk 1.2s linear infinite}
-  @keyframes sk{to{background-position:-200% 0}}
+  .state a{color:var(--brand); font-weight:600}
+  .skeleton .card-media{animation:sk 1.3s ease-in-out infinite}
+  @keyframes sk{0%,100%{opacity:.55}50%{opacity:1}}
 
-  .make-own{max-width:var(--maxw); margin:0 auto 6.5rem; padding:0 1rem; text-align:center}
-  .make-own a{display:inline-block; background:#fff; border:1px solid var(--line); color:var(--violet); font-weight:700;
-    border-radius:999px; padding:.8rem 1.6rem; text-decoration:none}
-  .make-own a:hover{background:#f3edff}
+  .make-own{max-width:var(--maxw); margin:0 auto 7rem; padding:0 1rem}
+  .make-own a{display:inline-block; background:var(--surface); border:1px solid var(--ink); color:var(--ink); font-weight:600;
+    border-radius:var(--r-sm); padding:.65rem 1.2rem; text-decoration:none}
+  .make-own a:hover{background:var(--ink); color:var(--paper)}
 
-  /* ---- Sticky conversion banner ---- */
+  /* ---- Sticky app banner ---- */
   .cta{
     position:fixed; left:0; right:0; bottom:0; z-index:50;
-    background:linear-gradient(135deg,var(--violet),var(--violet-2));
-    color:#fff; box-shadow:0 -6px 24px rgba(27,20,48,.22);
-    padding:.85rem 1rem calc(.85rem + env(safe-area-inset-bottom));
+    background:var(--ink); color:var(--paper);
+    padding:.8rem 2.6rem calc(.8rem + env(safe-area-inset-bottom)) 1rem;
   }
-  .cta-inner{max-width:var(--maxw); margin:0 auto; display:flex; align-items:center; gap:1rem; justify-content:center; flex-wrap:wrap}
-  .cta-text{font-weight:600; font-size:.95rem; line-height:1.3; max-width:42rem}
-  .cta-btn{flex:none; background:#fff; color:var(--violet); font-weight:800; text-decoration:none;
-    border-radius:999px; padding:.6rem 1.3rem; white-space:nowrap}
-  .cta-btn:hover{background:#f3edff}
-  .cta-close{position:absolute; top:.4rem; right:.6rem; background:transparent; border:0; color:rgba(255,255,255,.85);
-    font-size:1.2rem; cursor:pointer; line-height:1}
-  @media (max-width:560px){ .cta-text{font-size:.86rem} }
+  .cta-inner{max-width:var(--maxw); margin:0 auto; display:flex; align-items:center; gap:.6rem 1rem; justify-content:space-between; flex-wrap:wrap}
+  .cta-text{font-weight:500; font-size:.92rem; line-height:1.35; max-width:42rem; color:#d6d6d9}
+  .cta-btn{flex:none; background:var(--paper); color:var(--ink); font-weight:600; text-decoration:none;
+    border-radius:var(--r-sm); padding:.5rem 1rem; white-space:nowrap}
+  .cta-btn:hover{background:#fff}
+  .cta-close{position:absolute; top:.5rem; right:.7rem; background:transparent; border:0; color:#a8a8ad;
+    font-size:1.25rem; cursor:pointer; line-height:1}
+  @media (max-width:560px){ .cta-text{font-size:.84rem} }
 </style>
 </head>
 <body>
   <header>
     <div class="topbar">
-      <a class="brand" href="https://thehaps.app/"><span class="dot"></span> Haps</a>
+      <a class="brand" href="https://thehaps.app/"><img src="/assets/icon-64.png" alt=""> haps</a>
       <button id="shareBtn" class="share-btn" hidden>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
         Share
@@ -141,7 +138,7 @@
   </main>
 
   <div class="make-own">
-    <a href="https://thehaps.app/">＋ Make your own plan on Haps</a>
+    <a href="https://thehaps.app/">Make your own plan</a>
   </div>
 
   <!-- High-conversion floating sticky banner -->
@@ -169,18 +166,6 @@
     'image_url,is_free,is_hidden,merged_into,' +
     'event_category_map(is_primary,event_categories(name,slug))';
 
-  // ---- Category cosmetics (compact; swap for app.js CATS for exact parity) ----
-  var CATS = {
-    music:{e:'🎵',g:['#7c3aed','#c026d3']}, concert:{e:'🎵',g:['#7c3aed','#c026d3']},
-    arts:{e:'🎨',g:['#db2777','#f59e0b']}, theater:{e:'🎭',g:['#9333ea','#db2777']},
-    comedy:{e:'😂',g:['#f59e0b','#ef4444']}, food:{e:'🍴',g:['#ea580c','#f59e0b']},
-    drinks:{e:'🍸',g:['#7c3aed','#2563eb']}, nightlife:{e:'🌙',g:['#4338ca','#9333ea']},
-    family:{e:'👨‍👩‍👧','g':['#0ea5e9','#22c55e']}, kids:{e:'🧒',g:['#0ea5e9','#22c55e']},
-    sports:{e:'🏆',g:['#16a34a','#0ea5e9']}, outdoors:{e:'⛰️',g:['#16a34a','#0d9488']},
-    festival:{e:'🎪',g:['#db2777','#7c3aed']}, community:{e:'🤝',g:['#0d9488','#6d28d9']},
-    education:{e:'📚',g:['#2563eb','#7c3aed']}, film:{e:'🎬',g:['#1f2937','#7c3aed']}
-  };
-  var DEFAULT_CAT = {e:'🎉',g:['#7c3aed','#c026d3']};
 
   // ---- Text helpers (ported verbatim from website/events/app.js) ----
   var NAMED_ENT = {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',rsquo:'’',lsquo:'‘',
@@ -229,7 +214,6 @@
            || (ev.event_category_map||[])[0];
     var slug = cat && cat.event_categories ? cat.event_categories.slug : null;
     var catName = cat && cat.event_categories ? cat.event_categories.name : null;
-    var look = (slug && CATS[slug]) ? CATS[slug] : DEFAULT_CAT;
 
     var title = clean(ev.title) || 'Untitled event';
     var venue = clean(ev.venue) || clean(ev.address) || clean(ev.city) || '';
@@ -240,8 +224,8 @@
 
     return ''+
       '<a class="card" href="https://thehaps.app/event/'+esc(ev.id)+'/" aria-label="'+esc(title)+'">'+
-        '<div class="card-media" style="--g1:'+look.g[0]+';--g2:'+look.g[1]+'">'+
-          '<span class="fallback-emoji" aria-hidden="true">'+look.e+'</span>'+
+        '<div class="card-media">'+
+          '<span class="fallback-label" aria-hidden="true">'+esc(catName || 'Event')+'</span>'+
           img+
           (badge?'<span class="date-badge">'+badge.mon+'<span class="dnum">'+badge.day+'</span></span>':'')+
           (ev.is_free?'<span class="flag-badge">Free</span>':'')+
@@ -250,7 +234,7 @@
           '<span class="card-when">'+esc(whenLabel(ev.start_time))+'</span>'+
           '<h3 class="card-title">'+esc(title)+'</h3>'+
           (venue?'<span class="card-venue">'+esc(venue)+'</span>':'')+
-          (catName?'<div class="card-tags"><span class="tag">'+look.e+' '+esc(catName)+'</span></div>':'')+
+          (catName?'<div class="card-tags"><span class="tag">'+esc(catName)+'</span></div>':'')+
         '</div>'+
       '</a>';
   }
