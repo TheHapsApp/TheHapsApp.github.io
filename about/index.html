@@ -15,7 +15,10 @@
 <meta property="og:url" content="https://thehaps.app/about/">
 <meta property="og:image" content="https://thehaps.app/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="/styles.css?v=9">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&display=swap">
+<link rel="stylesheet" href="/assets/tokens.css?v=1">
+<link rel="stylesheet" href="/styles.css?v=10">
 <script src="/assets/analytics.js"></script>
 </head>
 <body>
@@ -127,22 +130,18 @@
 
     <section class="features">
       <div class="card">
-        <div class="ico">🔥</div>
         <h3>Swipe to discover</h3>
         <p>No endless feed to scroll — Haps shows you one event at a time. A few quick swipes and you&rsquo;ve got a plan.</p>
       </div>
       <div class="card">
-        <div class="ico">✨</div>
         <h3>A "For You" feed</h3>
         <p>Pick the categories you care about and Haps surfaces those first — concerts, food, nightlife, family, and more.</p>
       </div>
       <div class="card">
-        <div class="ico">📍</div>
         <h3>Near you, your way</h3>
         <p>Set your city and a search radius from 1 to 75 miles. Browse on a map or sort by what's happening tonight.</p>
       </div>
       <div class="card">
-        <div class="ico">💜</div>
         <h3>Save &amp; sync</h3>
         <p>Keep your favorites in one place and sync them across devices when you sign in. No ads, ever.</p>
       </div>
@@ -302,7 +301,7 @@
         if (r.ok) {
           form.reset();
           msg.className = 'rf-msg rf-ok';
-          msg.textContent = "Thanks! We've added " + city + " to the list. 🎉";
+          msg.textContent = "Thanks! We've added " + city + " to the list.";
         } else {
           msg.className = 'rf-msg rf-err';
           msg.textContent = "Hmm, that didn't go through. Please try again.";

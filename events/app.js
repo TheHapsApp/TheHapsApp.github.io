@@ -215,10 +215,10 @@
     var on = !saves[id];
     setSaveLocal(id, on, title);                  // optimistic — feels instant
     if (sbClient && authUser) {
-      toast(on ? 'Saved 💜' : 'Removed from saves');
+      toast(on ? 'Saved' : 'Removed from saves');
       serverSave(id, on, title);
     } else {
-      toast(on ? 'Saved 💜 — sign in to sync' : 'Removed from saves');
+      toast(on ? 'Saved. Sign in to sync it.' : 'Removed from saves');
     }
   }
   function renderSavedBadge() {
@@ -462,7 +462,7 @@
       else setAdminMode(false);
       if (event === 'SIGNED_IN') {
         cleanAuthUrl();
-        if (!wasSignedIn) toast('Signed in 💜 — your saves now sync');
+        if (!wasSignedIn) toast('Signed in. Your saves now sync.');
       }
     });
   }
@@ -677,13 +677,23 @@
     if (it.cont && it.start <= now) return { top: 'NOW', big: '★' };
     return { top: fmtMonth.format(it.start).toUpperCase(), big: String(it.start.getDate()) };
   }
-  function gradFor(slug) {
+  function fallbackLabel(slug) {
     var c = CAT_BY_SLUG[slug];
-    return c ? c[3] : ['#7c3aed', '#c026d3'];
+    return c ? esc(c[1]) : 'Event';
   }
-  function emojiFor(slug) {
-    var c = CAT_BY_SLUG[slug];
-    return c ? c[2] : '✨';
+  // Small inline line icons (replaces emoji in the UI).
+  var ICONS = {
+    cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    pin: '<path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>',
+    ticket: '<path d="M4 8V6h16v2a2 2 0 0 0 0 4v2a2 2 0 0 0 0 4v0H4v0a2 2 0 0 0 0-4v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/>',
+    car: '<path d="M5 16V11l2-5h10l2 5v5M5 16h14M5 16v2M19 16v2"/><circle cx="8" cy="13" r=".8"/><circle cx="16" cy="13" r=".8"/>',
+    heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    share: '<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>',
+    ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
+    nav: '<path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5"/>'
+  };
+  function icon(name) {
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + '</svg>';
   }
   function linkFor(r) {
     return safeUrl(r.ticket_url) || safeUrl(r.event_url) || safeUrl(r.link_url) || safeUrl(r.original_url);
@@ -693,7 +703,7 @@
   function renderCatChips() {
     els.catChips.innerHTML = CATS.map(function (c) {
       return '<button class="chip chip-cat' + (state.cats[c[0]] ? ' is-on' : '') + '" data-cat="' + c[0] + '">' +
-        c[2] + ' ' + esc(c[1]) + '</button>';
+        esc(c[1]) + '</button>';
     }).join('');
   }
   function renderLocUi() {
@@ -713,7 +723,7 @@
     // paint the track violet up to the thumb
     var pct = ((state.radius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN)) * 100;
     els.radiusSlider.style.background =
-      'linear-gradient(to right, var(--violet) ' + pct + '%, #e9e2f8 ' + pct + '%)';
+      'linear-gradient(to right, var(--ink) ' + pct + '%, var(--line) ' + pct + '%)';
   }
 
   // ---------- render: cards ----------
@@ -722,21 +732,20 @@
   }
   function cardHtml(group) {
     var it = group.rep, r = it.r;
-    var grad = gradFor(it.primary);
     var img = safeUrl(r.image_url);
     var catMeta = it.primary ? CAT_BY_SLUG[it.primary] : null;
     var badge = badgeFor(it);
     var badges = '';
-    if (r.is_featured === true) badges += '<span class="flag-badge b-feat">✨ Featured</span>';
-    else if ((r.save_count || 0) >= 5) badges += '<span class="flag-badge">🔥 Trending</span>';
+    if (r.is_featured === true) badges += '<span class="flag-badge b-feat">Pick</span>';
+    else if ((r.save_count || 0) >= 5) badges += '<span class="flag-badge">Trending</span>';
     if (r.is_free === true) badges += '<span class="flag-badge b-free">Free</span>';
     var tags = '';
-    if (catMeta) tags += '<span class="tag">' + catMeta[2] + ' ' + esc(catMeta[1]) + '</span>';
-    if (group.dayCount > 1) tags += '<span class="tag t-dates">📅 ' + group.dayCount + ' dates</span>';
+    if (catMeta) tags += '<span class="tag">' + esc(catMeta[1]) + '</span>';
+    if (group.dayCount > 1) tags += '<span class="tag t-dates">' + group.dayCount + ' dates</span>';
     if (it.dist != null) tags += '<span class="tag t-dist">' + it.dist.toFixed(1) + ' mi</span>';
     return '<article class="card" data-id="' + esc(it.id) + '" tabindex="0" role="button" aria-label="' + esc(r.title) + '">' +
-      '<div class="card-media" style="--g1:' + grad[0] + ';--g2:' + grad[1] + '">' +
-        '<span class="fallback-emoji" aria-hidden="true">' + emojiFor(it.primary) + '</span>' +
+      '<div class="card-media">' +
+        '<span class="fallback-label" aria-hidden="true">' + fallbackLabel(it.primary) + '</span>' +
         (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
         '<span class="date-badge">' + badge.top + '<span class="dnum">' + badge.big + '</span></span>' +
         '<button class="heart-btn' + (isSaved(it.id) ? ' is-saved' : '') + '" data-heart="' + esc(it.id) + '" aria-label="Save event">' + heartSvg() + '</button>' +
@@ -752,9 +761,9 @@
   }
   function promoHtml() {
     return '<aside class="card card-promo">' +
-      '<h3>Like what you see?</h3>' +
-      '<p>Haps is better in the app — swipe through events, sync your saves, and get reminders before things start.</p>' +
-      '<a href="/beta">Get the app →</a>' +
+      '<h3>Get reminders before things start</h3>' +
+      '<p>Save events here and they sync to the Haps app on iPhone and Android.</p>' +
+      '<a href="/beta">Get the app</a>' +
     '</aside>';
   }
   function skeletonHtml() {
@@ -801,7 +810,7 @@
     if (state.loading && visibleCount === 0) return;
     if (state.error && visibleCount === 0) {
       els.stateBox.hidden = false;
-      els.stateBox.innerHTML = '<div class="big">📡</div><h2>Couldn\'t load events</h2>' +
+      els.stateBox.innerHTML = '<h2>Couldn\'t load events</h2>' +
         '<p>Check your connection and try again.</p><button id="retryBtn">Retry</button>';
       var rb = document.getElementById('retryBtn');
       if (rb) rb.addEventListener('click', function () { resetAndLoad(); });
@@ -810,8 +819,8 @@
     if (visibleCount === 0 && !state.loading) {
       els.stateBox.hidden = false;
       els.stateBox.innerHTML = state.savedView
-        ? '<div class="big">💜</div><h2>No saved events yet</h2><p>Tap the heart on any event to keep it here.</p>'
-        : '<div class="big">🦗</div><h2>Nothing matches right now</h2>' +
+        ? '<h2>No saved events yet</h2><p>Tap the heart on any event to keep it here.</p>'
+        : '<h2>Nothing matches right now</h2>' +
           '<p>Try a wider radius, a different day, or fewer filters.</p>';
       return;
     }
@@ -956,18 +965,18 @@
   }
   function detailHtml(group) {
     var it = group.rep, r = it.r;
-    var grad = gradFor(it.primary);
+
     var img = safeUrl(r.image_url);
     var link = linkFor(r);
     var maps = 'https://maps.google.com/?q=' + encodeURIComponent([r.venue, r.address, r.city].filter(Boolean).join(', '));
     var badges = '';
     (it.slugs.length ? it.slugs : []).slice(0, 3).forEach(function (s) {
       var c = CAT_BY_SLUG[s];
-      if (c) badges += '<span class="tag">' + c[2] + ' ' + esc(c[1]) + '</span>';
+      if (c) badges += '<span class="tag">' + esc(c[1]) + '</span>';
     });
-    if (r.is_free === true) badges += '<span class="tag" style="color:#15803d;background:#e7f6ec">Free</span>';
-    if (r.age_restriction && /^\d/.test(r.age_restriction)) badges += '<span class="tag" style="color:#b91c1c;background:#fdeaea">' + esc(r.age_restriction) + '</span>';
-    if (r.is_featured === true) badges += '<span class="tag">✨ Featured</span>';
+    if (r.is_free === true) badges += '<span class="tag t-free">Free</span>';
+    if (r.age_restriction && /^\d/.test(r.age_restriction)) badges += '<span class="tag t-age">' + esc(r.age_restriction) + '</span>';
+    if (r.is_featured === true) badges += '<span class="tag t-feat">Pick</span>';
 
     var dateLine;
     if (it.cont) {
@@ -982,12 +991,12 @@
       }
     }
 
-    var facts = '<li><span class="f-ico">🗓</span><span>' + esc(dateLine) + '</span></li>';
+    var facts = '<li><span class="f-ico">' + icon('cal') + '</span><span>' + esc(dateLine) + '</span></li>';
     var place = [r.venue, r.address].filter(Boolean).join(' · ') || r.city || '';
-    if (place) facts += '<li><span class="f-ico">📍</span><span>' + esc(place) + ' &nbsp;<a href="' + esc(maps) + '" target="_blank" rel="noopener">Directions</a></span></li>';
-    if (r.price_summary) facts += '<li><span class="f-ico">🎟</span><span>' + esc(r.price_summary) + '</span></li>';
-    else if (r.is_free === true) facts += '<li><span class="f-ico">🎟</span><span>Free</span></li>';
-    if (it.dist != null && !state.savedView) facts += '<li><span class="f-ico">🚗</span><span>' + it.dist.toFixed(1) + ' miles away</span></li>';
+    if (place) facts += '<li><span class="f-ico">' + icon('pin') + '</span><span>' + esc(place) + ' &nbsp;<a href="' + esc(maps) + '" target="_blank" rel="noopener">Directions</a></span></li>';
+    if (r.price_summary) facts += '<li><span class="f-ico">' + icon('ticket') + '</span><span>' + esc(r.price_summary) + '</span></li>';
+    else if (r.is_free === true) facts += '<li><span class="f-ico">' + icon('ticket') + '</span><span>Free</span></li>';
+    if (it.dist != null && !state.savedView) facts += '<li><span class="f-ico">' + icon('car') + '</span><span>' + it.dist.toFixed(1) + ' miles away</span></li>';
 
     var datesBlock = '';
     if (group.dayCount > 1) {
@@ -1015,8 +1024,8 @@
       }).join('') + '</div>';
     }
 
-    return '<div class="dt-media" style="--g1:' + grad[0] + ';--g2:' + grad[1] + '">' +
-        '<span class="fallback-emoji" aria-hidden="true">' + emojiFor(it.primary) + '</span>' +
+    return '<div class="dt-media">' +
+        '<span class="fallback-label" aria-hidden="true">' + fallbackLabel(it.primary) + '</span>' +
         (img ? '<img src="' + esc(img) + '" alt="">' : '') +
         '<button class="dlg-close dt-close" data-close="detailDialog" aria-label="Close">&times;</button>' +
       '</div>' +
@@ -1026,14 +1035,14 @@
         (r.one_line_summary ? '<p class="dt-lede">' + esc(r.one_line_summary) + '</p>' : '') +
         '<ul class="dt-facts">' + facts + '</ul>' +
         '<div class="dt-actions">' +
-          (link ? '<a class="dt-btn primary" href="' + esc(link) + '" target="_blank" rel="noopener">' + (safeUrl(r.ticket_url) ? 'Get tickets ↗' : 'Event website ↗') + '</a>' : '') +
-          '<button class="dt-btn' + (isSaved(it.id) ? ' is-saved' : '') + '" data-heart="' + esc(it.id) + '" data-save-title="' + esc(r.title) + '">♥ <span>' + (isSaved(it.id) ? 'Saved' : 'Save') + '</span></button>' +
-          '<div class="cal-menu"><button class="dt-btn" id="calBtn">📅 Calendar</button>' +
+          (link ? '<a class="dt-btn primary" href="' + esc(link) + '" target="_blank" rel="noopener">' + (safeUrl(r.ticket_url) ? 'Get tickets ' : 'Event website ') + icon('ext') + '</a>' : '') +
+          '<button class="dt-btn' + (isSaved(it.id) ? ' is-saved' : '') + '" data-heart="' + esc(it.id) + '" data-save-title="' + esc(r.title) + '">' + icon('heart') + ' <span>' + (isSaved(it.id) ? 'Saved' : 'Save') + '</span></button>' +
+          '<div class="cal-menu"><button class="dt-btn" id="calBtn">' + icon('cal') + ' Add to calendar</button>' +
             '<div class="cal-pop" id="calPop" hidden>' +
               '<button data-cal="google">Google Calendar</button>' +
               '<button data-cal="ics">Apple / Outlook (.ics)</button>' +
             '</div></div>' +
-          '<button class="dt-btn" id="shareBtn">↗ Share</button>' +
+          '<button class="dt-btn" id="shareBtn">' + icon('share') + ' Share</button>' +
         '</div>' +
         datesBlock + descHtml + vibes +
         '<div class="dt-appcta"><p><strong>Take it with you.</strong> Save this in the Haps app and get a reminder before it starts.</p><a href="/beta">Get the app</a></div>' +
@@ -1173,7 +1182,7 @@
         if (r.latitude == null || r.longitude == null) return;
         pts.push([r.latitude, r.longitude]);
         var m = window.L.circleMarker([r.latitude, r.longitude], {
-          radius: 8, color: '#fff', weight: 2, fillColor: '#7c3aed', fillOpacity: .92
+          radius: 8, color: '#fff', weight: 2, fillColor: '#5530d8', fillOpacity: .92
         }).addTo(markerLayer);
         m.bindPopup('<div class="map-pop"><p class="mp-title">' + esc(r.title) + '</p>' +
           '<p class="mp-meta">' + esc(whenLabel(g.rep)) + (r.venue ? ' · ' + esc(r.venue) : '') + '</p>' +
@@ -1346,10 +1355,10 @@
     navigator.geolocation.getCurrentPosition(function (pos) {
       state.citySlug = 'geo'; state.cityName = 'Near me';
       state.lat = pos.coords.latitude; state.lng = pos.coords.longitude;
-      els.useGeo.textContent = '🧭 Use my location';
+      els.useGeo.innerHTML = icon('nav') + ' Use my location';
       renderLocUi(); setPanel(null); resetAndLoad();
     }, function () {
-      els.useGeo.textContent = '🧭 Use my location';
+      els.useGeo.innerHTML = icon('nav') + ' Use my location';
       toast('Couldn\'t get your location');
     }, { timeout: 8000 });
   });
@@ -1372,10 +1381,10 @@
   function setDateChipUi() {
     if (state.when === 'date' && state.date) {
       els.dateChip.classList.add('is-on');
-      els.dateChip.textContent = '📅 ' + fmtDayShort.format(parseLocalDate(state.date));
+      els.dateChip.innerHTML = icon('cal') + ' ' + esc(fmtDayShort.format(parseLocalDate(state.date)));
     } else {
       els.dateChip.classList.remove('is-on');
-      els.dateChip.textContent = '📅 Pick a date';
+      els.dateChip.innerHTML = icon('cal') + ' Pick a date';
     }
   }
   var calY, calM;
@@ -1710,7 +1719,7 @@
   function copyPlanLink(url) {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(
-        function () { toast('Plan link copied 💜 — paste it in your group chat'); },
+        function () { toast('Plan link copied. Paste it in your group chat.'); },
         function () { window.prompt('Copy your plan link:', url); }   // eslint-disable-line no-alert
       );
     } else { window.prompt('Copy your plan link:', url); }            // eslint-disable-line no-alert
@@ -1722,18 +1731,17 @@
       'body.plan-mode .card{cursor:copy}' +
       '.card.is-picked{outline:3px solid var(--violet);outline-offset:-3px}' +
       '.pick-pill{position:absolute;bottom:.5rem;left:.5rem;z-index:3;min-width:1.6rem;height:1.6rem;' +
-        'padding:0 .42rem;border-radius:999px;background:linear-gradient(135deg,var(--violet),var(--fuchsia));' +
-        'color:#fff;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;' +
-        'box-shadow:0 2px 8px rgba(0,0,0,.3)}' +
-      '.plan-toggle{border:1px solid var(--line);background:#fff;color:var(--violet);font-weight:700;' +
-        'border-radius:999px;padding:.42rem .85rem;cursor:pointer;font-size:.85rem;white-space:nowrap}' +
-      '.plan-toggle.is-on{background:var(--violet);color:#fff;border-color:var(--violet)}' +
+        'padding:0 .42rem;border-radius:var(--r-sm);background:var(--mark);' +
+        'color:var(--mark-ink);font-weight:700;font-size:.82rem;display:flex;align-items:center;justify-content:center}' +
+      '.plan-toggle{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font-weight:600;' +
+        'border-radius:var(--r-sm);padding:.45rem .75rem;cursor:pointer;font-size:.85rem;white-space:nowrap}' +
+      '.plan-toggle.is-on{background:var(--ink);color:var(--paper);border-color:var(--ink)}' +
       '.plan-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom));' +
-        'z-index:60;display:flex;align-items:center;gap:.7rem;background:var(--ink);color:#fff;border-radius:999px;' +
+        'z-index:60;display:flex;align-items:center;gap:.7rem;background:var(--ink);color:#fff;border-radius:var(--r-md);' +
         'padding:.5rem .6rem .5rem 1.1rem;box-shadow:0 12px 32px rgba(27,20,48,.34);max-width:calc(100vw - 1.5rem)}' +
       '.plan-bar .pb-count{font-weight:700;font-size:.9rem;white-space:nowrap}' +
-      '.plan-bar .pb-share{background:linear-gradient(135deg,var(--violet),var(--fuchsia));color:#fff;border:0;' +
-        'font-weight:800;border-radius:999px;padding:.55rem 1.15rem;cursor:pointer;white-space:nowrap}' +
+      '.plan-bar .pb-share{background:var(--paper);color:var(--ink);border:0;' +
+        'font-weight:600;border-radius:var(--r-sm);padding:.55rem 1.15rem;cursor:pointer;white-space:nowrap}' +
       '.plan-bar .pb-share:disabled{opacity:.5;cursor:default}' +
       '.plan-bar .pb-clear{background:transparent;border:0;color:rgba(255,255,255,.72);cursor:pointer;font-size:.85rem}' +
       '.plan-bar .pb-close{background:transparent;border:0;color:rgba(255,255,255,.72);cursor:pointer;font-size:1.25rem;line-height:1;padding:0 .25rem}';
@@ -1744,7 +1752,7 @@
     planToggle.className = 'plan-toggle';
     planToggle.setAttribute('aria-pressed', 'false');
     planToggle.title = 'Build a shortlist to share with friends';
-    planToggle.textContent = '✓ Plan';
+    planToggle.textContent = 'Plan';
     if (els.savedBtn && els.savedBtn.parentNode) {       // sit beside the Saved button
       els.savedBtn.parentNode.insertBefore(planToggle, els.savedBtn.nextSibling);
     } else {                                             // fallback: float it top-right
@@ -2155,42 +2163,5 @@
   }
 })();
 
-/* ---- Theme picker (Settings → "Choose your look" on the app) ---- */
-(function () {
-  var THEME_KEY = 'hapsWebTheme';
-  var btn = document.getElementById('themeBtn');
-  var menu = document.getElementById('themeMenu');
-  var wrap = document.getElementById('themeWrap');
-  if (!btn || !menu) return;
-  var opts = Array.prototype.slice.call(menu.querySelectorAll('.theme-opt'));
-
-  function current() {
-    try { return localStorage.getItem(THEME_KEY) || ''; } catch (e) { return ''; }
-  }
-  function mark(val) {
-    opts.forEach(function (o) {
-      o.setAttribute('aria-checked', o.getAttribute('data-theme-val') === val ? 'true' : 'false');
-    });
-  }
-  function apply(val) {
-    if (val) document.documentElement.setAttribute('data-theme', val);
-    else document.documentElement.removeAttribute('data-theme');
-    try {
-      if (val) localStorage.setItem(THEME_KEY, val);
-      else localStorage.removeItem(THEME_KEY);
-    } catch (e) { /* private mode */ }
-    mark(val);
-  }
-  function open(show) {
-    menu.hidden = !show;
-    btn.setAttribute('aria-expanded', show ? 'true' : 'false');
-  }
-
-  mark(current());
-  btn.addEventListener('click', function (e) { e.stopPropagation(); open(menu.hidden); });
-  opts.forEach(function (o) {
-    o.addEventListener('click', function () { apply(o.getAttribute('data-theme-val')); open(false); });
-  });
-  document.addEventListener('click', function (e) { if (wrap && !wrap.contains(e.target)) open(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') open(false); });
-})();
+/* Web theme picker removed 2026-11; clear any saved choice so old visitors get the default look. */
+try { localStorage.removeItem('hapsWebTheme'); } catch (e) { /* private mode */ }
