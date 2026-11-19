@@ -23,6 +23,18 @@ posthog.init('phc_kdA422xs2LCRJ8fLKwB79APgs8JevXyTi5gJVjxMzkux', {
        stealth-patched. Runs per event; return null = never ingested. */
     before_send: function (event) {
       if (navigator.webdriver || /Headless/i.test(navigator.userAgent)) return null;
+      // Static /event/<id>/ pages carry their event id + venue in <meta> tags;
+      // stamp them on the pageview so views roll up per venue (leaderboard).
+      if (event && event.event === '$pageview' && event.properties) {
+        try {
+          var idTag = document.querySelector('meta[name="haps:event-id"]');
+          if (idTag && idTag.content) {
+            event.properties.event_id = idTag.content;
+            var venueTag = document.querySelector('meta[name="haps:venue"]');
+            if (venueTag && venueTag.content) event.properties.venue = venueTag.content;
+          }
+        } catch (e) { /* never block a pageview over tagging */ }
+      }
       return event;
     }
 });

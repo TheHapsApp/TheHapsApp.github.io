@@ -743,6 +743,8 @@ function pageHtml(it, group, related = '') {
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&display=swap">
 <link rel="stylesheet" href="/assets/tokens.css?v=1">
 <style>${BASE_CSS}</style>
+<meta name="haps:event-id" content="${esc(it.id)}">
+<meta name="haps:venue" content="${esc(r.venue || '')}">
 <script src="/assets/analytics.js"></script>
 </head>
 <body>

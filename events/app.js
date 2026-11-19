@@ -1202,6 +1202,15 @@
       history.pushState(null, '', '#' + serializeHash(h));
     }
     wireDetail(group);
+    // Opening an event here is a hash change, not a pageview, so log it
+    // explicitly: the per-venue view count (admin leaderboard) needs it.
+    try {
+      if (window.posthog && window.posthog.capture) {
+        window.posthog.capture('event_view', {
+          event_id: group.rep.id, venue: group.rep.r.venue || null, surface: 'web_app'
+        });
+      }
+    } catch (e) { /* analytics must never break the dialog */ }
   }
   function wireDetail(group) {
     var it = group.rep, r = it.r;
@@ -2000,7 +2009,10 @@
   var adminSuppressClick = false; // swallow the click that follows a long-press
   var adminInited = false;
   var adminToolbar, adminBar, adminBarBody, adminMenu, adminEditDialog,
-      adminEditBody, adminDebugDialog, adminDebugBody, adminHiddenBtn;
+      adminEditBody, adminDebugDialog, adminDebugBody, adminHiddenBtn,
+      adminVenuesDialog, adminVenuesBody, adminVenuesNote;
+  var venuesDays = 30, venuesRows = [], venuesThrough = null,
+      venuesSort = { key: null, dir: -1 };   // key null = server order (click-outs, then views)
 
   // Arm only on an explicit admin URL so an admin browsing the public
   // site never sees admin chrome. ?admin=1 sticks it; ?admin=0 clears.
@@ -2200,6 +2212,104 @@
     }).catch(function (err) { toast('Debug failed: ' + (err.message || err)); });
   }
 
+  // ---- venue leaderboard: which venues Haps already sends people to ----
+  // Rows come from admin_venue_leaderboard() (migration 0071), admin-gated
+  // server side. Web columns come from web_event_stats, which is copied from
+  // PostHog; admin_web_stats_through() says how fresh that copy is.
+  var VENUE_COLS = [
+    ['venue', 'Venue', 0], ['city', 'City', 0], ['live_events', 'Live events', 1],
+    ['web_views', 'Web views', 1], ['app_opens', 'App opens', 1], ['saves', 'Saves', 1],
+    ['click_outs', 'Click-outs', 1]
+  ];
+
+  function openVenues() {
+    adminVenuesDialog.showModal();
+    loadVenues();
+  }
+
+  function loadVenues() {
+    adminVenuesDialog.querySelectorAll('[data-vdays]').forEach(function (b) {
+      b.classList.toggle('is-on', Number(b.getAttribute('data-vdays')) === venuesDays);
+    });
+    adminVenuesNote.textContent = 'Loading…';
+    adminVenuesBody.innerHTML = '';
+    Promise.all([
+      Promise.resolve(sbClient.rpc('admin_venue_leaderboard', { p_days: venuesDays, p_limit: 200 })),
+      Promise.resolve(sbClient.rpc('admin_web_stats_through'))
+    ]).then(function (res) {
+      if (res[0].error) throw res[0].error;
+      venuesRows = res[0].data || [];
+      venuesThrough = res[1] && !res[1].error ? res[1].data : null;
+      renderVenues();
+    }).catch(function (err) {
+      console.error(err);
+      adminVenuesNote.textContent = 'Couldn’t load the leaderboard: ' + (err.message || err);
+    });
+  }
+
+  function sortedVenues() {
+    var rows = venuesRows.slice();
+    var k = venuesSort.key; if (!k) return rows;
+    var dir = venuesSort.dir;
+    rows.sort(function (a, b) {
+      var x = a[k], y = b[k];
+      if (typeof x === 'number' || typeof y === 'number') return ((Number(x) || 0) - (Number(y) || 0)) * dir;
+      return String(x || '').localeCompare(String(y || '')) * dir;
+    });
+    return rows;
+  }
+
+  function renderVenues() {
+    var through = venuesThrough ? String(venuesThrough) : null;
+    var stale = !through || (Date.now() - Date.parse(through + 'T00:00:00Z')) > 2 * 864e5;
+    var tot = { web_views: 0, app_opens: 0, saves: 0, click_outs: 0 };
+    venuesRows.forEach(function (r) { for (var k in tot) tot[k] += Number(r[k]) || 0; });
+    adminVenuesNote.innerHTML =
+      'Last ' + venuesDays + ' days · ' + venuesRows.length + ' venues · ' +
+      tot.web_views + ' web views · ' + tot.app_opens + ' app opens · ' + tot.saves + ' saves · ' +
+      tot.click_outs + ' click-outs.<br>' +
+      '<span class="' + (stale ? 'admin-warn' : '') + '">Web numbers through ' +
+      esc(through || 'never') + (stale ? ' (copied from PostHog, not synced nightly yet)' : '') +
+      '.</span> Click-outs are tracked from Nov 19, 2026.';
+    var head = VENUE_COLS.map(function (c) {
+      var on = venuesSort.key === c[0];
+      return '<th class="' + (c[2] ? 'num' : '') + '"><button type="button" data-vsort="' + c[0] + '">' +
+        esc(c[1]) + (on ? (venuesSort.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></th>';
+    }).join('');
+    var body = sortedVenues().map(function (r) {
+      return '<tr>' + VENUE_COLS.map(function (c) {
+        var v = r[c[0]];
+        if (!c[2]) return '<td>' + esc(v || '—') + '</td>';
+        var n = Number(v) || 0;
+        return '<td class="num' + (n ? '' : ' zero') + '">' + n + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    adminVenuesBody.innerHTML = venuesRows.length
+      ? '<table class="admin-vt"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>'
+      : '<p class="admin-edit-note">No venues yet.</p>';
+  }
+
+  function venuesCsv() {
+    var cols = VENUE_COLS.concat([['web_visitors', 'Web visits', 1], ['events_engaged', 'Events engaged', 1],
+      ['web_click_outs', 'Web click-outs', 1], ['app_click_outs', 'App click-outs', 1]]);
+    function cell(v) {
+      var s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+    var lines = [cols.map(function (c) { return cell(c[1]); }).join(',')];
+    sortedVenues().forEach(function (r) {
+      lines.push(cols.map(function (c) { return cell(r[c[0]]); }).join(','));
+    });
+    var csv = lines.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(csv).then(
+        function () { toast('Copied ' + (lines.length - 1) + ' venues as CSV'); },
+        function () { toast('Couldn’t copy to the clipboard'); });
+    } else {
+      toast('Clipboard not available in this browser');
+    }
+  }
+
   // ---- per-render injection (runs after every renderGrid) ----
   function adminAfterRender() {
     if (!els.grid) return;
@@ -2259,6 +2369,7 @@
     adminToolbar.id = 'adminToolbar'; adminToolbar.hidden = true;
     adminToolbar.innerHTML = '<span class="admin-tb-tag">🛠 Admin</span>' +
       '<button class="admin-tb-btn" id="adminHiddenToggle">Show hidden</button>' +
+      '<button class="admin-tb-btn" id="adminVenuesBtn">Venues</button>' +
       '<button class="admin-tb-btn" id="adminExit">Exit</button>';
     document.body.appendChild(adminToolbar);
     adminHiddenBtn = document.getElementById('adminHiddenToggle');
@@ -2315,6 +2426,34 @@
       '<div class="admin-dialog-actions"><button value="ok" class="admin-bar-btn primary">Close</button></div></form>';
     document.body.appendChild(adminDebugDialog);
     adminDebugBody = adminDebugDialog.querySelector('#adminDebugBody');
+
+    adminVenuesDialog = document.createElement('dialog');
+    adminVenuesDialog.id = 'adminVenuesDialog'; adminVenuesDialog.className = 'admin-dialog admin-venues';
+    adminVenuesDialog.innerHTML = '<form method="dialog"><h3>Venue leaderboard</h3>' +
+      '<div class="admin-venues-bar"><div class="admin-seg" role="group" aria-label="Time window">' +
+        '<button type="button" data-vdays="7">7 days</button>' +
+        '<button type="button" data-vdays="30">30 days</button>' +
+        '<button type="button" data-vdays="90">90 days</button></div>' +
+        '<button type="button" class="admin-bar-btn" id="adminVenuesCsv">Copy CSV</button></div>' +
+      '<p class="admin-edit-note" id="adminVenuesNote"></p>' +
+      '<div class="admin-venues-scroll" id="adminVenuesBody"></div>' +
+      '<div class="admin-dialog-actions"><button value="ok" class="admin-bar-btn primary">Close</button></div></form>';
+    document.body.appendChild(adminVenuesDialog);
+    adminVenuesBody = adminVenuesDialog.querySelector('#adminVenuesBody');
+    adminVenuesNote = adminVenuesDialog.querySelector('#adminVenuesNote');
+    document.getElementById('adminVenuesBtn').addEventListener('click', openVenues);
+    adminVenuesDialog.querySelector('#adminVenuesCsv').addEventListener('click', venuesCsv);
+    adminVenuesDialog.addEventListener('click', function (e) {
+      var d = e.target.closest('[data-vdays]');
+      if (d) { venuesDays = Number(d.getAttribute('data-vdays')); loadVenues(); return; }
+      var s = e.target.closest('[data-vsort]');
+      if (s) {
+        var k = s.getAttribute('data-vsort');
+        if (venuesSort.key === k) venuesSort.dir = -venuesSort.dir;
+        else { venuesSort.key = k; venuesSort.dir = (k === 'venue' || k === 'city') ? 1 : -1; }
+        renderVenues();
+      }
+    });
 
     // long-press a card → toggle merge selection (the workflow you described)
     var lpTimer = null, lpId = null;
