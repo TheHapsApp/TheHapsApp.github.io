@@ -64,6 +64,7 @@ const ECM_CHUNK = 150; // event ids per batch — keeps each ?in.(...) URL well 
 const STATIC_URLS = [
   ['/', 'daily', '1.0'],
   ['/about/', 'monthly', '0.7'],
+  ['/embed/', 'monthly', '0.6'],
   ['/beta', 'monthly', '0.8'],
   ['/privacy', 'yearly', '0.5'],
   ['/terms', 'yearly', '0.5'],
@@ -92,6 +93,7 @@ const CAT_PAGE_MIN_GROUPS = 4;     // skip thin category pages
 const HUB_WINDOW_DAYS = 60;
 const FREE_WINDOW_DAYS = 30;
 const LIST_CAP = 60;
+const EMBED_FEED_CAP = 12;         // widget shows at most 10; 2 spare for ended-today skips
 
 // Per-category landing-page phrasing (falls back to "{label} events in {city}").
 const CAT_PHRASES = {
@@ -505,6 +507,10 @@ function toItem(r) {
   const sp = tzParts(start, tz);
   const ep = end ? tzParts(end, tz) : null;
   const allDay = !!(ep && sp.hh === 0 && sp.mm === 0 && ep.hh === 23 && ep.mm >= 55);
+  // List rows show the date alone when the time is unknown: all-day,
+  // continuous, or a bare local-midnight start (sources with no time land at
+  // 00:00 — "12:00 AM" on a list is almost never a real start time).
+  const noTime = allDay || cont || (sp.hh === 0 && sp.mm === 0);
   const slugs = [];
   let primary = null;
   (r.event_category_map || []).forEach(m => {
@@ -514,7 +520,7 @@ function toItem(r) {
       if (m.is_primary || !primary) primary = c.slug;
     }
   });
-  return { r, id: r.id, tz, start, end, ended, cont, dropIn, allDay, slugs, primary, mtimeMs };
+  return { r, id: r.id, tz, start, end, ended, cont, dropIn, allDay, noTime, slugs, primary, mtimeMs };
 }
 
 function dateLine(it) {
@@ -691,7 +697,7 @@ function pageHtml(it, group, related = '') {
     const pills = group.items.slice(0, 16).map(o =>
       `<a class="pill${o.id === it.id ? ' is-on' : ''}" href="/event/${esc(o.id)}/">` +
       esc(fmt(o.start, o.tz, { weekday: 'short', month: 'short', day: 'numeric' })) +
-      (o.allDay || o.cont ? '' : ' · ' + esc(fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }))) + '</a>'
+      (o.noTime ? '' : ' · ' + esc(fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }))) + '</a>'
     ).join('');
     datesBlock = `<section class="dates"><h2>All dates &amp; times</h2><div class="pills">${pills}` +
       (group.items.length > 16 ? '<span class="pill">+ more in the app</span>' : '') + '</div></section>';
@@ -770,7 +776,7 @@ function pageHtml(it, group, related = '') {
   </article>
 </main>
 <footer class="footer">
-  © 2026 Haps App · <a href="/">Browse all events</a> · <a href="/about/">About</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+  © 2026 Haps App · <a href="/">Browse all events</a> · <a href="/about/">About</a> · <a href="/embed/">Add events to your site</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
 </footer>
 </body>
 </html>
@@ -848,7 +854,7 @@ function topPicks(list, routineOk = false) {
 function pickCardHtml(o, g) {
   const r = o.r;
   const when = fmt(o.start, o.tz, { weekday: 'short', month: 'short', day: 'numeric' }) +
-    (o.allDay || o.cont ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
+    (o.noTime ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
   const img = safeUrl(r.image_url);
   const ph = (o.primary && CATS[o.primary]) ? CATS[o.primary][0] : 'Event';
   return `<li class="pk"><a href="/event/${esc(o.id)}/">` +
@@ -881,7 +887,7 @@ const groupFeatured = g => g.items.some(x => x.r.is_featured === true);
 function rowHtml(o, g) {
   const r = o.r;
   const when = fmt(o.start, o.tz, { weekday: 'short', month: 'short', day: 'numeric' }) +
-    (o.allDay || o.cont ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
+    (o.noTime ? '' : ' · ' + fmt(o.start, o.tz, { hour: 'numeric', minute: '2-digit' }));
   let tags = '';
   if (groupFeatured(g)) tags += '<span class="tag tag-pick">Our pick</span>';
   if (o.primary && CATS[o.primary]) tags += `<span class="tag">${esc(CATS[o.primary][0])}</span>`;
@@ -893,6 +899,24 @@ function rowHtml(o, g) {
     `<a class="ev-title" href="/event/${esc(o.id)}/">${esc(r.title)}</a>` +
     (venue ? `<span class="ev-venue">${esc(venue)}</span>` : '') +
     (tags ? `<div class="tags">${tags}</div>` : '') + '</li>';
+}
+
+/* One event in an embed feed (/embed/v1/{city}/{list}.json). Short keys —
+ * these are fetched by every page that embeds the widget. Times are ISO UTC;
+ * the widget formats them in `tz`. */
+function feedItem(o, g) {
+  const r = o.r;
+  const it = { id: o.id, t: r.title, s: o.start.toISOString(), tz: o.tz };
+  if (o.noTime) it.ad = 1;
+  if (r.venue) it.v = r.venue;
+  if (r.city) it.c = r.city;
+  if (r.is_free === true) it.free = 1;
+  if (groupFeatured(g)) it.pick = 1;
+  const img = safeUrl(r.image_url);
+  if (img) it.img = img;
+  const n = new Set(g.items.map(x => localDateStr(x.start, x.tz))).size;
+  if (n > 1) it.n = n;
+  return it;
 }
 
 function itemListLd(name, urls) {
@@ -965,7 +989,7 @@ function landingHtml(o) {
   <p class="cities">Things to do in: ${others}</p>
 </main>
 <footer class="footer">
-  © 2026 Haps App · <a href="/">Browse all events</a> · <a href="/about/">About</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+  © 2026 Haps App · <a href="/">Browse all events</a> · <a href="/about/">About</a> · <a href="/embed/">Add events to your site</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
 </footer>
 </body>
 </html>
@@ -1020,7 +1044,8 @@ function cityPages(city, items) {
       rows: picked.slice(0, cap).map(p => rowHtml(p.o, p.g)),
       urls: picked.slice(0, cap).map(p => `${SITE}/event/${p.o.id}/`),
       picks: top.map(p => pickCardHtml(p.o, p.g)),
-      pickUrls: top.map(p => `${SITE}/event/${p.o.id}/`)
+      pickUrls: top.map(p => `${SITE}/event/${p.o.id}/`),
+      feed: picked.slice(0, EMBED_FEED_CAP).map(p => feedItem(p.o, p.g))
     };
   }
 
@@ -1145,6 +1170,7 @@ function cityPages(city, items) {
   const pages = specs.map(x => ({
     path: x.path,
     mtimeMs: x.picked.mtimeMs,
+    embed: { list: x.slug, label: x.label, group: x.group, title: x.o.h1, total: x.picked.total, items: x.picked.feed },
     html: landingHtml(Object.assign({
       path: x.path, city, crumb: `${crumb} ${esc(x.label)}`,
       picked: x.picked, more: nav(x.path)
@@ -1155,6 +1181,7 @@ function cityPages(city, items) {
   pages.unshift({
     path: hubPath,
     mtimeMs: hub.mtimeMs,
+    embed: { list: 'all', label: 'Everything', group: 'all', title: `Things to do in ${city.name}`, total: hub.total, items: hub.feed },
     html: landingHtml({
       path: hubPath, city, crumb: '',
       headTitle: `Things to Do in ${city.name} — Local Events Calendar | Haps`,
@@ -1330,8 +1357,19 @@ async function main() {
 
   // City / category landing pages under /events/{city}/...
   const landingEntries = [];
+  const embedIndex = { generatedAt: new Date(buildMs).toISOString(), cities: [] };
+  const embedDir = path.join(siteDir, 'embed', 'v1');
   for (const city of LANDING_CITIES) {
+    const cityLists = [];
+    embedIndex.cities.push({ slug: city.slug, name: city.name, lists: cityLists });
+    await mkdir(path.join(embedDir, city.slug), { recursive: true });
     for (const page of cityPages(city, items)) {
+      const e = page.embed;
+      cityLists.push({ list: e.list, label: e.label, group: e.group, total: e.total });
+      await writeFile(path.join(embedDir, city.slug, `${e.list}.json`), JSON.stringify({
+        city: city.slug, cityName: city.name, list: e.list, title: e.title,
+        url: SITE + page.path, total: e.total, items: e.items
+      }));
       const dir = path.join(siteDir, page.path.slice(1));
       await mkdir(dir, { recursive: true });
       await writeFile(path.join(dir, 'index.html'), page.html);
@@ -1342,6 +1380,7 @@ async function main() {
     }
   }
 
+  await writeFile(path.join(embedDir, 'index.json'), JSON.stringify(embedIndex));
   await writeFile(path.join(siteDir, 'sitemap.xml'), sitemapXml(repEntries, landingEntries, buildMs));
   if (statePath) {
     await mkdir(path.dirname(statePath), { recursive: true });

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Local Events Widget for Your Website | Haps</title>
+<meta name="description" content="Add a free, auto-updating list of local Utah events to your website: things to do this weekend, free family events, holiday events and more. Copy one snippet; no sign-up, no cookies.">
+<link rel="canonical" href="https://thehaps.app/embed/">
+<link rel="icon" href="/assets/icon-64.png">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Free local events widget for your website">
+<meta property="og:description" content="An auto-updating list of things to do near you. Copy one snippet; no sign-up.">
+<meta property="og:url" content="https://thehaps.app/embed/">
+<meta property="og:image" content="https://thehaps.app/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&display=swap">
+<link rel="stylesheet" href="/assets/tokens.css?v=1">
+<link rel="stylesheet" href="/styles.css?v=10">
+<style>
+  .em { max-width: 1040px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+  .em h1 { font-family: var(--font-display); font-stretch: 80%; font-weight: 800; text-transform: uppercase;
+    font-size: clamp(1.9rem, 5vw, 2.8rem); line-height: 1.02; margin: .6rem 0 .7rem; color: var(--ink); }
+  .em .lede { font-size: 1.08rem; color: var(--text); max-width: 62ch; margin: 0 0 1.4rem; }
+  .em-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+  @media (max-width: 760px) { .em-grid { grid-template-columns: minmax(0, 1fr); } }
+  .em h2 { font-family: var(--font-display); font-stretch: 85%; font-weight: 800; text-transform: uppercase;
+    font-size: 1.05rem; letter-spacing: .01em; margin: 0 0 .7rem; color: var(--ink); }
+  .field { display: block; margin: 0 0 .9rem; }
+  .field span { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: .3rem; }
+  .field select, .field input[type=text] { width: 100%; box-sizing: border-box; font: inherit; font-size: 1rem; padding: .6rem .7rem;
+    border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .check { display: flex; gap: .5rem; align-items: center; font-size: .95rem; margin: .2rem 0 1rem; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 9.5rem; font: .82rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: .7rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--sunk); color: var(--ink); resize: vertical; }
+  .copy { margin-top: .5rem; font: inherit; font-weight: 600; padding: .65rem 1.1rem; border: 0; border-radius: var(--r-sm);
+    background: var(--brand); color: #fff; cursor: pointer; }
+  .copy:hover { background: var(--brand-hover); }
+  .copied { margin-left: .6rem; color: var(--ok); font-weight: 600; font-size: .9rem; }
+  .preview { padding: 1rem; border: 1px dashed var(--line-strong); border-radius: var(--r-md); background: var(--sunk); }
+  .preview.dark { background: #111113; }
+  .why { margin-top: 2.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.5rem; }
+  .why h3 { font-size: 1rem; margin: 0 0 .25rem; color: var(--ink); }
+  .why p { margin: 0; color: var(--text); font-size: .95rem; }
+  .faq { margin-top: 2.2rem; max-width: 70ch; }
+  .faq p { color: var(--text); }
+</style>
+<script src="/assets/analytics.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/"><img src="/assets/icon-64.png" alt=""> haps</a>
+    <span class="links">
+      <a href="/">Browse events</a>
+      <a href="/about/">About</a>
+      <a class="nav-cta" href="/beta">Get the app</a>
+    </span>
+  </nav>
+
+  <main class="em">
+    <h1>Free local events widget for your website</h1>
+    <p class="lede">Show your visitors what’s happening nearby: this weekend, free family events, holiday events and more. The list updates itself every day. Copy one snippet into your site; there’s no sign-up and no cost.</p>
+
+    <div class="em-grid">
+      <section aria-labelledby="h-build">
+        <h2 id="h-build">1. Pick your list</h2>
+        <label class="field"><span>Area</span><select id="city"></select></label>
+        <label class="field"><span>Events to show</span><select id="list"></select></label>
+        <div class="row2">
+          <label class="field"><span>How many</span>
+            <select id="count"><option>3</option><option selected>5</option><option>8</option><option>10</option></select></label>
+          <label class="field"><span>Look</span>
+            <select id="theme"><option value="light">Light</option><option value="dark">Dark</option><option value="auto">Match visitor’s device</option></select></label>
+        </div>
+        <label class="field"><span>Heading (optional)</span><input type="text" id="title" maxlength="80" placeholder="Uses the list name if blank"></label>
+        <label class="check"><input type="checkbox" id="images" checked> Show event photos</label>
+
+        <h2>2. Copy the code</h2>
+        <textarea id="code" readonly aria-label="Embed code"></textarea>
+        <button class="copy" id="copy" type="button">Copy code</button><span class="copied" id="copied" hidden>Copied</span>
+        <p style="font-size:.9rem;color:var(--muted);margin-top:.8rem">Paste it where you want the list to appear. On WordPress, Squarespace or Wix, use a “Custom HTML” or “Code” block.</p>
+      </section>
+
+      <section aria-labelledby="h-preview">
+        <h2 id="h-preview">Preview</h2>
+        <div class="preview" id="previewWrap"><div id="preview"></div></div>
+      </section>
+    </div>
+
+    <section class="why" aria-label="Why add it">
+      <div><h3>Always current</h3><p>Rebuilt every morning from 100+ Utah event sources, including city calendars, libraries, venues and festivals.</p></div>
+      <div><h3>Light and safe</h3><p>One small script and a static list. No cookies, no ads, no tracking of your visitors. If it can’t load, a plain link shows instead.</p></div>
+      <div><h3>Fits your site</h3><p>Works on any site that accepts HTML. It sizes to the space you give it, and your site’s styles can’t break it.</p></div>
+    </section>
+
+    <section class="faq">
+      <h2>Questions</h2>
+      <p><strong>Who is this for?</strong> Libraries, city and HOA sites, schools, hotels and vacation rentals, venues, local blogs: anyone whose visitors ask “what’s going on around here?”</p>
+      <p><strong>Can I list my own events?</strong> Yes. If your events are on a public calendar we already read, they show up automatically. If not, <a href="mailto:admin@thehaps.app">email us</a> a link to your calendar.</p>
+      <p><strong>Something wrong with a listing?</strong> <a href="mailto:admin@thehaps.app">Let us know</a> and we’ll fix it.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="inner">
+      <span>© 2026 Haps App · <a href="mailto:admin@thehaps.app">admin@thehaps.app</a></span>
+      <span class="links">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </span>
+    </div>
+  </footer>
+
+<script src="/embed/v1/widget.js"></script>
+<script>
+(function () {
+  var SITE = 'https://thehaps.app';
+  var $ = function (id) { return document.getElementById(id); };
+  var GROUPS = [['all', 'General'], ['when', 'When'], ['topic', 'Popular & seasonal'], ['cat', 'Categories']];
+  var index = null;
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function city() { return index.cities.filter(function (c) { return c.slug === $('city').value; })[0]; }
+  function pagePath(c, l) { return '/events/' + c + '/' + (l === 'all' ? '' : l + '/'); }
+
+  function fillLists(keep) {
+    var c = city(), sel = $('list'), html = '';
+    GROUPS.forEach(function (g) {
+      var ls = c.lists.filter(function (l) { return l.group === g[0]; });
+      if (!ls.length) return;
+      html += '<optgroup label="' + esc(g[1]) + '">' + ls.map(function (l) {
+        var name = l.list === 'all' ? 'Everything coming up' : l.label;
+        return '<option value="' + esc(l.list) + '">' + esc(name) + ' (' + l.total + ')</option>';
+      }).join('') + '</optgroup>';
+    });
+    sel.innerHTML = html;
+    if (keep && c.lists.some(function (l) { return l.list === keep; })) sel.value = keep;
+    else if (c.lists.some(function (l) { return l.list === 'this-weekend'; })) sel.value = 'this-weekend';
+  }
+
+  function linkText(c, l) {
+    var lst = c.lists.filter(function (x) { return x.list === l; })[0];
+    if (l === 'all' || !lst) return 'Things to do in ' + c.name;
+    return lst.label + ' in ' + c.name;
+  }
+
+  function update() {
+    var c = city(), l = $('list').value, n = $('count').value, th = $('theme').value,
+        t = $('title').value.trim(), img = $('images').checked;
+    var attrs = 'class="haps-widget" data-city="' + c.slug + '" data-list="' + l + '" data-count="' + n + '"' +
+      (th !== 'light' ? ' data-theme="' + th + '"' : '') + (img ? '' : ' data-images="0"') +
+      (t ? ' data-title="' + esc(t) + '"' : '');
+    var inner = 'Events from <a href="' + SITE + pagePath(c.slug, l) + '">Haps: ' + esc(linkText(c, l)) + '</a>';
+    $('code').value = '<div ' + attrs + '>\n  ' + inner + '\n</div>\n<script async src="' + SITE + '/embed/v1/widget.js"><\/script>';
+
+    var p = $('preview');
+    p.innerHTML = '<div ' + attrs + '>' + inner + '</div>';
+    $('previewWrap').classList.toggle('dark', th === 'dark' ||
+      (th === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches));
+    window.HapsWidget.scan();
+    $('copied').hidden = true;
+  }
+
+  $('copy').addEventListener('click', function () {
+    var ta = $('code');
+    var done = function () { $('copied').hidden = false; };
+    if (navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); document.execCommand('copy'); done(); });
+    else { ta.select(); document.execCommand('copy'); done(); }
+    try { window.posthog && window.posthog.capture('embed_code_copied', { city: $('city').value, list: $('list').value }); } catch (e) {}
+  });
+  $('city').addEventListener('change', function () { fillLists($('list').value); update(); });
+  ['list', 'count', 'theme', 'images'].forEach(function (id) { $(id).addEventListener('change', update); });
+  $('title').addEventListener('input', update);
+
+  fetch('/embed/v1/index.json').then(function (r) { return r.json(); }).then(function (data) {
+    index = data;
+    $('city').innerHTML = data.cities.map(function (c) {
+      return '<option value="' + esc(c.slug) + '">' + esc(c.name) + '</option>';
+    }).join('');
+    fillLists();
+    update();
+  }).catch(function () {
+    $('preview').textContent = 'Couldn’t load the list of areas. Please refresh.';
+  });
+})();
+</script>
+</body>
+</html>
