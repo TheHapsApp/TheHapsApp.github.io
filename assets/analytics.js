@@ -33,15 +33,30 @@ if (phOptedOut) {
   posthog.opt_in_capturing();           // re-enable a browser that was previously opted out
 }
 
-/* App-download funnel: named events on top of autocapture.
-   get_app_click  = any "Get the app" CTA (links to /beta)
+/* Named click events on top of autocapture.
+   click_out       = tap through to an event's ticket / organizer website — the
+                     referral a venue cares about. The link carries data-co
+                     (event id) + data-co-kind/-venue/-surface, stamped at render
+                     time by the static /event/ pages and the web app detail view.
+   get_app_click   = any "Get the app" CTA (links to /beta)
    app_store_click = an actual store link (App Store badge / Play opt-in).
    Capture phase so site JS that stops propagation can't swallow these. */
 document.addEventListener('click', function (e) {
   var a = e.target && e.target.closest && e.target.closest('a[href]');
   if (!a) return;
   var href = a.getAttribute('href') || '';
-  if (href.indexOf('apps.apple.com') !== -1) {
+  if (a.hasAttribute('data-co')) {
+    // Static event pages open the link in the same tab, so this page is about
+    // to unload: skip the batch queue and send by beacon so it isn't dropped.
+    posthog.capture('click_out', {
+      event_id: a.getAttribute('data-co'),
+      kind: a.getAttribute('data-co-kind') || 'website',
+      venue: a.getAttribute('data-co-venue') || null,
+      host: (a.hostname || '').toLowerCase().replace(/^www\./, ''),
+      surface: a.getAttribute('data-co-surface') || null,
+      page: location.pathname
+    }, { send_instantly: true, transport: 'sendBeacon' });
+  } else if (href.indexOf('apps.apple.com') !== -1) {
     posthog.capture('app_store_click', { store: 'ios', href: href, page: location.pathname });
   } else if (href.indexOf('play.google.com') !== -1) {
     posthog.capture('app_store_click', { store: 'android', href: href, page: location.pathname });

@@ -1172,7 +1172,10 @@
         (r.one_line_summary ? '<p class="dt-lede">' + esc(r.one_line_summary) + '</p>' : '') +
         '<ul class="dt-facts">' + facts + '</ul>' +
         '<div class="dt-actions">' +
-          (link ? '<a class="dt-btn primary" href="' + esc(link) + '" target="_blank" rel="noopener">' + (safeUrl(r.ticket_url) ? 'Get tickets ' : 'Event website ') + icon('ext') + '</a>' : '') +
+          (link ? '<a class="dt-btn primary" href="' + esc(link) + '" target="_blank" rel="noopener"' +
+            ' data-co="' + esc(it.id) + '" data-co-kind="' + (safeUrl(r.ticket_url) ? 'tickets' : 'website') + '"' +
+            ' data-co-venue="' + esc(r.venue || '') + '" data-co-surface="web_app">' +
+            (safeUrl(r.ticket_url) ? 'Get tickets ' : 'Event website ') + icon('ext') + '</a>' : '') +
           '<button class="dt-btn' + (isSaved(it.id) ? ' is-saved' : '') + '" data-heart="' + esc(it.id) + '" data-save-title="' + esc(r.title) + '">' + icon('heart') + ' <span>' + (isSaved(it.id) ? 'Saved' : 'Save') + '</span></button>' +
           '<div class="cal-menu"><button class="dt-btn" id="calBtn">' + icon('cal') + ' Add to calendar</button>' +
             '<div class="cal-pop" id="calPop" hidden>' +

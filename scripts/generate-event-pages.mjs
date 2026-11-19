@@ -759,7 +759,7 @@ function pageHtml(it, group, related = '') {
     ${r.one_line_summary ? `<p class="lede">${esc(r.one_line_summary)}</p>` : ''}
     <ul class="facts">${facts}</ul>
     <div class="actions">
-      ${link ? `<a class="btn btn-primary" href="${esc(link)}" rel="noopener">${safeUrl(r.ticket_url) ? 'Get tickets ↗' : 'Event website ↗'}</a>` : ''}
+      ${link ? `<a class="btn btn-primary" href="${esc(link)}" rel="noopener" data-co="${esc(it.id)}" data-co-kind="${safeUrl(r.ticket_url) ? 'tickets' : 'website'}" data-co-venue="${esc(r.venue || '')}" data-co-surface="event_page">${safeUrl(r.ticket_url) ? 'Get tickets ↗' : 'Event website ↗'}</a>` : ''}
       <a class="btn" href="/#e=${esc(it.id)}">Save &amp; browse more events</a>
     </div>
     ${datesBlock}
