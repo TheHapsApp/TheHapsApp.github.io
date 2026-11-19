@@ -53,7 +53,7 @@ jobs:
         env:
           # Force a live fetch on cron + manual runs; reuse cache on pushes.
           SEO_FORCE_REFRESH: ${{ github.event_name != 'push' && '1' || '0' }}
-        run: node scripts/generate-event-pages.mjs --site /tmp/site --cache /tmp/seo-cache/events.json
+        run: node scripts/generate-event-pages.mjs --site /tmp/site --cache /tmp/seo-cache/events.json --indexnow-out /tmp/indexnow-urls.txt
       - name: Save SEO dataset cache
         if: always()
         uses: actions/cache/save@v4
@@ -63,6 +63,12 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: /tmp/site
+      - name: Keep changed-URL list for IndexNow
+        uses: actions/upload-artifact@v4
+        with:
+          name: indexnow-urls
+          path: /tmp/indexnow-urls.txt
+          retention-days: 3
 
   deploy:
     needs: build
@@ -73,6 +79,30 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Tell Bing/Yandex/Seznam (and ChatGPT search, which reads Bing's index)
+  # about pages whose content changed this build, once they're live. The key
+  # file c2be4fe4a159c8e4100ddc16c88b965b.txt at the site root proves we own
+  # the host; IndexNow keys are public by design. Non-fatal: a failed ping
+  # must never fail the deploy.
+  indexnow:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: indexnow-urls
+      - name: Submit changed URLs
+        continue-on-error: true
+        run: |
+          n=$(grep -c . indexnow-urls.txt || true)
+          echo "$n changed URLs"
+          [ "$n" -gt 0 ] || exit 0
+          jq -R . indexnow-urls.txt | jq -s '{host: "thehaps.app", key: "c2be4fe4a159c8e4100ddc16c88b965b", keyLocation: "https://thehaps.app/c2be4fe4a159c8e4100ddc16c88b965b.txt", urlList: .}' > body.json
+          curl -sS -o resp.txt -w '%{http_code}\n' -X POST https://api.indexnow.org/indexnow \
+            -H 'Content-Type: application/json; charset=utf-8' --data @body.json | tee code.txt
+          cat resp.txt; echo
+          grep -qE '^20[02]$' code.txt
 
   # GitHub disables scheduled workflows after 60 days without a commit to the
   # repo. That froze this site on 2026-10-14 (last commit 2026-08-15): event

@@ -37,6 +37,8 @@ import { createHash } from 'node:crypto';
 const SB = 'https://cvcnugkqdgmcntsuplaj.supabase.co/rest/v1';
 const KEY = 'sb_publishable_8FPhq5etjCNGvPwaQyFyCA_La2INImz';
 const SITE = 'https://thehaps.app';
+// IndexNow accepts up to 10,000 URLs per POST; landing pages come first.
+const INDEXNOW_MAX_URLS = 10000;
 const APP_ID = '6775696204';
 const PAGE = 1000;
 const GRACE_MS = 4 * 3600e3;      // an occurrence stays "live" until 4h past its end (or start when no end)
@@ -141,11 +143,59 @@ const TOPICS = [
   { slug: 'christmas', q: 'christmas', label: 'Christmas', emoji: '🎄', inSummary: true, year: true,
     re: /christmas|holiday lights|festival of trees|\bsanta\b(?! (clara|fe|monica|barbara|cruz|rosa|ana)\b)|nutcracker|tree lighting|hanukkah|menorah|winter wonderland|light display/i,
     h1: 'Christmas & holiday events in', head: 'Christmas Events in {city} {year} — Lights, Santa & Shows',
-    intro: 'Light displays, tree lightings, visits with Santa, Nutcracker performances, carolers and holiday concerts — every Christmas event we know of around {city}, updated daily through the season.' },
+    intro: 'Light displays, tree lightings, visits with Santa, Nutcracker performances, carolers and holiday concerts — every Christmas event we know of around {city}, updated daily through the season.',
+    about: ['The Christmas season around {city} starts the weekend before Thanksgiving with tree lightings and “lights on” nights and builds through Christmas Eve. Free community events (lightings, parades, Santa visits, sing-alongs) are mostly on Friday and Saturday evenings in late November and early December.',
+      'Ticketed favorites such as light shows, the Nutcracker and holiday concerts sell out, so book early for weekends.'] },
   { slug: 'holiday-markets', q: 'market', label: 'Holiday markets', emoji: '🎁', inSummary: false, year: true,
     re: /craft (fair|show|market|bazaar|boutique)|holiday (market|bazaar|boutique|craft)|christmas (market|bazaar|boutique|gift)|makers? market|artisan (market|fair)|vendor (fair|market)/i,
     h1: 'Holiday markets & craft fairs in', head: 'Holiday Markets & Craft Fairs in {city} {year}',
-    intro: 'Shop local makers, artisans and small vendors at holiday markets, craft fairs and boutiques around {city} — dates, hours and locations in one place.' },
+    intro: 'Shop local makers, artisans and small vendors at holiday markets, craft fairs and boutiques around {city} — dates, hours and locations in one place.',
+    about: ['Holiday markets around {city} usually start the weekend before Thanksgiving and run through mid-December, with the biggest crowds on Saturdays. Many are one-day church, school or community-center craft fairs; others are multi-week makers’ markets with food trucks and live music.',
+      'Most charge little or nothing to get in, but some vendors are cash-only, so bring a few bills. If you’re shopping for something specific, go early on the first day — handmade items sell out.'] },
+  /* Seasonal holiday topics, added 2026-11-19 for December search demand.
+   * URLs carry no year so each season builds on last year's ranking; the
+   * >= CAT_PAGE_MIN_GROUPS gate drops them from the sitemap off-season.
+   * `exclude` knocks out venue-hours / parking / rehearsal rows that share
+   * the words. Regexes sampled against the live UT catalog 2026-11-19. */
+  { slug: 'christmas-lights', q: 'lights', label: 'Christmas lights', emoji: '✨', inSummary: false, year: true,
+    re: /(christmas|holiday|festival of|winter|zoo ?) ?lights\b|light (display|show|festival|maze|tour)|lights (on|tour|show|display|festival|celebration)|illuminat(e|ed)\b|luminaria|christmas in color|zoolights|dazzling garden/i,
+    exclude: /parking|hours\b|closed|closing|practice|rehearsal|volunteer/i,
+    h1: 'Christmas lights & light shows in', head: 'Christmas Lights in {city} {year} — Light Shows & Displays',
+    intro: 'Where to see Christmas lights around {city}: drive-thru light shows, zoo and garden light displays, festival-of-lights nights and tree lightings — with dates and hours, updated daily.',
+    about: ['Most Christmas light displays around {city} switch on the week of Thanksgiving and run nightly from dusk until early January. Weeknights are far less crowded than Fridays and Saturdays, and the week between Christmas and New Year’s is the busiest of the season.',
+      'Drive-thru shows and zoo or garden light walks often sell timed tickets, so book ahead for weekends. Neighborhood and city “lights on” nights are usually free and often come with Santa visits, hot cocoa and live music. Dress warmly — walking displays take an hour or more.'] },
+  { slug: 'santa', q: 'santa', label: 'See Santa', emoji: '🎅', inSummary: false, year: true,
+    re: /\bsanta\b(?! (clara|fe|monica|barbara|cruz|rosa|ana)\b)|north pole|polar express|\bmrs\.? claus\b/i,
+    exclude: /paint|brush|burlesque|21\+|hours\b/i,
+    h1: 'Where to see Santa in', head: 'Where to See Santa in {city} {year} — Breakfast with Santa & Photos',
+    intro: 'Breakfast with Santa, photos with Santa, Santa’s arrival parades, North Pole train rides and Santa runs around {city} — every Santa event we know of, updated daily.',
+    about: ['Santa appearances around {city} cluster on the first three weekends of December. Breakfasts with Santa at hotels, conference centers and city recreation centers almost always need advance tickets and sell out, so reserve early.',
+      'Free visits are common at city tree lightings, library events and shopping centers. Most let you take your own photos; some offer professional photo packages. Themed train rides and Polar Express–style events book up weeks ahead.'] },
+  { slug: 'nutcracker', q: 'nutcracker', label: 'The Nutcracker', emoji: '🩰', inSummary: false, year: true,
+    re: /nutcracker/i,
+    exclude: /parking|audition|rehearsal|hours\b/i,
+    h1: 'The Nutcracker in', head: 'The Nutcracker in {city} {year} — Ballet Performances & Tickets',
+    intro: 'Every Nutcracker performance we know of around {city}: professional ballet companies, local dance studios and community productions, plus Nutcracker teas and kids’ events.',
+    about: ['Nutcracker season around {city} runs from late November through Christmas week. Professional company productions cost the most and sell out first, especially weekend matinees. Dance-studio and civic ballet productions are cheaper, often family-friendly in length, and a great first ballet for young kids.',
+      'Many productions add sensory-friendly or shortened children’s performances, and some host Nutcracker tea parties where kids meet the dancers.'] },
+  { slug: 'holiday-concerts', q: 'christmas concert', label: 'Holiday shows', emoji: '🎶', inSummary: false, year: true,
+    re: /messiah|christmas carol|caroling|carolers|carol sing|christmas (concert|choir|show|spectacular|pops|musical)|holiday (concert|pops|choir|show|spectacular)|handel|sing-?along/i,
+    exclude: /parking|practice|rehearsal|audition|livestream|hours\b/i,
+    h1: 'Holiday concerts & Christmas shows in', head: 'Christmas Concerts & Holiday Shows in {city} {year}',
+    intro: 'Holiday pops concerts, Messiah sing-ins, A Christmas Carol productions, choir and organ concerts and Christmas spectaculars around {city} — dates, venues and tickets, updated daily.',
+    about: ['December is the busiest month of the year for live music and theater around {city}. Symphony and touring holiday shows sell out early. Church, school and community choir concerts and Messiah sing-alongs are often free or donation-based, but seating is first come, first served.',
+      'A Christmas Carol runs in several productions most years, from big stage musicals to one-man shows, so compare dates and run times before you buy tickets.'] },
+  { slug: 'hanukkah', q: 'hanukkah', label: 'Hanukkah', emoji: '🕎', inSummary: true, year: true,
+    re: /hanukkah|chanukah|menorah/i,
+    h1: 'Hanukkah events in', head: 'Hanukkah Events in {city} {year} — Menorah Lightings & Celebrations',
+    intro: 'Public menorah lightings, Hanukkah parties, family workshops and community celebrations around {city}.' },
+  { slug: 'new-years-eve', q: 'new year', label: 'New Year’s Eve', emoji: '🎆', inSummary: false, year: true,
+    re: /new years?'?’?s? eve|\bnye\b|noon years?'?’?s?( eve)?|countdown (party|crawl|celebration)/i,
+    exclude: /hours\b|closing|closed|new years?'?’?s? day/i,
+    h1: 'New Year’s Eve events in', head: 'New Year’s Eve in {city} {year} — Parties, Fireworks & Family Events',
+    intro: 'New Year’s Eve parties, fireworks, masquerade balls, bar crawls, ski-resort torchlight parades and kid-friendly “Noon Year’s Eve” countdowns around {city}.',
+    about: ['New Year’s Eve around {city} ranges from 21+ club nights and bar crawls to family festivals with early fireworks. Libraries, museums and rec centers host daytime “Noon Year’s Eve” countdowns for little kids who won’t make it to midnight.',
+      'Ski resorts often hold torchlight parades and fireworks after dark. Big parties and dinner packages sell out or raise prices in the last week, so buy early. Plan for rideshare surge pricing after midnight.'] },
   { slug: 'runs-races', q: '5k', label: 'Fun runs & 5Ks', emoji: '🏅', inSummary: false,
     re: /\b(5|10)k\b|half marathon|\bmarathon\b|fun run|turkey trot|gobbler|jingle (run|bell run)|ugly sweater run/i,
     h1: 'Fun runs, 5Ks & races in', head: 'Fun Runs, 5Ks & Races in {city} | Haps',
@@ -909,6 +959,7 @@ function landingHtml(o) {
     <a class="btn" href="/beta">Get the app</a>
   </div>
   ${list}
+  ${o.about && o.about.length ? `<section class="about"><h2>Good to know</h2>${o.about.map(p => `<p class="intro">${esc(p)}</p>`).join('')}</section>` : ''}
   ${o.more ? `<section class="more"><h2>More things to do in ${esc(o.city.name)}</h2>${o.more}</section>` : ''}
   <div class="appcta"><strong>Never miss a thing.</strong> The Haps app learns what you like, syncs your saves, and reminds you before events start. <a href="/beta">Get the app →</a></div>
   <p class="cities">Things to do in: ${others}</p>
@@ -1047,7 +1098,8 @@ function cityPages(city, items) {
   // --- topics (keyword) ---
   TOPICS.forEach(t => {
     const picked = pick(o => within(TOPIC_WINDOW_DAYS)(o) &&
-      t.re.test(t.inSummary ? `${o.r.title} ${o.r.one_line_summary || ''}` : o.r.title), LIST_CAP, { routineOk: true });
+      t.re.test(t.inSummary ? `${o.r.title} ${o.r.one_line_summary || ''}` : o.r.title) &&
+      !(t.exclude && t.exclude.test(o.r.title)), LIST_CAP, { routineOk: true });
     if (picked.total < CAT_PAGE_MIN_GROUPS) return;
     const h1 = `${t.h1} ${city.name}`;
     add('topic', t.slug, t.label, t.emoji, picked, {
@@ -1055,6 +1107,7 @@ function cityPages(city, items) {
       h1: cap(h1),
       lede: `${plural(picked.total, 'upcoming event')} around ${city.name} — updated daily.`,
       intro: fill(t.intro),
+      about: (t.about || []).map(p => fill(p)),
       metaDesc: `${fill(t.intro)} ${picked.total} upcoming — updated daily on Haps.`,
       emptyMsg: 'Nothing listed right now — check back soon.',
       browseHash: `/#city=${city.browser}&q=${encodeURIComponent(t.q)}`
@@ -1209,8 +1262,14 @@ async function main() {
   }
   // lastmod only moves when the page's content hash moves; a hash never seen
   // before seeds from updated_at (capped at build time by sitemapLastmod).
+  // Keys whose content changed (or appeared) this build → IndexNow ping.
+  // Empty on a cold start (no prior state), so an evicted cache can't
+  // resubmit the whole site.
+  const warm = Object.keys(prevStamps).length > 0;
+  const changedKeys = new Set();
   function resolveLastmod(key, hash, fallbackMs) {
     const prev = prevStamps[key];
+    if (warm && (!prev || prev.h !== hash)) changedKeys.add(key);
     const ms = prev && prev.h === hash ? prev.ms : (prev ? buildMs : (fallbackMs || buildMs));
     nextState.stamps[key] = { h: hash, ms };
     return ms;
@@ -1264,7 +1323,8 @@ async function main() {
     // One sitemap entry per collapsed series, only while it still has a live
     // occurrence; ended-but-kept pages stay reachable but stop being advertised.
     if (/^[0-9a-f-]{36}$/i.test(group.rep.id) && group.items.some(o => !o.ended)) {
-      repEntries.push({ id: group.rep.id, mtimeMs: newestMs });
+      repEntries.push({ id: group.rep.id, mtimeMs: newestMs,
+        changed: group.items.some(it => changedKeys.has('E:' + it.id)) });
     }
   }
 
@@ -1286,6 +1346,18 @@ async function main() {
   if (statePath) {
     await mkdir(path.dirname(statePath), { recursive: true });
     await writeFile(statePath, JSON.stringify(nextState));
+  }
+
+  // IndexNow: sitemap URLs whose content changed this build. The workflow
+  // submits this list after the deploy is live (see deploy.yml `indexnow`).
+  const inArg = process.argv.indexOf('--indexnow-out');
+  if (inArg > -1 && process.argv[inArg + 1]) {
+    const urls = [
+      ...landingEntries.filter(e => changedKeys.has('L:' + e.path)).map(e => SITE + e.path),
+      ...repEntries.filter(e => e.changed).map(e => `${SITE}/event/${e.id}/`)
+    ].slice(0, INDEXNOW_MAX_URLS);
+    await writeFile(path.resolve(process.argv[inArg + 1]), urls.join('\n') + (urls.length ? '\n' : ''));
+    console.log(`IndexNow: ${urls.length} changed URLs${warm ? '' : ' (cold start — none submitted)'}`);
   }
 
   const endedCount = items.filter(it => it.ended).length;
