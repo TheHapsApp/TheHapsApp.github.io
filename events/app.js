@@ -1306,8 +1306,9 @@
       var L = window.L;
       if (!map) {
         map = L.map('map');
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        // CARTO basemaps went API-key-only (keyless tiles render an "API KEY REQUIRED" placeholder) — use OSM's standard tiles.
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19
         }).addTo(map);
         markerLayer = L.layerGroup().addTo(map);
