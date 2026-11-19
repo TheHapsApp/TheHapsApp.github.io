@@ -773,16 +773,22 @@ const PICKS_N = 8;
  * venue, 3 per primary category. Boosted events bypass the caps. */
 function topPicks(list, routineOk = false) {
   const ranked = list.map(p => ({ p, s: standoutScore(p.o, p.g, routineOk) })).sort((a, b) => b.s - a.s);
-  const out = [], venue = new Map(), cat = new Map();
+  const out = [], venue = new Map(), cat = new Map(), seen = [];
   let sports = 0;
   for (const { p, s } of ranked) {
     if (out.length >= PICKS_N) break;
     const boosted = s >= 100;
     if (!boosted && s < 6) break;      // don't pad Top picks with filler
     const v = norm(p.o.r.venue), c = p.o.primary || '-';
+    // One slot per event: recurring dates ("Zipline Tours" Nov 18 + 19) and
+    // same-venue title variants ("Bards Night Out Karaoke!" / "... With Madeline").
+    const core = coreTitle(p.o.r.title);
+    if (core && seen.some(x => x.core === core ||
+        (v && x.v === v && (x.core.startsWith(core) || core.startsWith(x.core))))) continue;
     const isSports = SPORTS_MATCHUP_RE.test(p.o.r.title);
     if (!boosted && ((v && (venue.get(v) || 0) >= 2) || (cat.get(c) || 0) >= 3 || (isSports && sports >= 1))) continue;
     out.push(p);
+    seen.push({ core, v });
     if (v) venue.set(v, (venue.get(v) || 0) + 1);
     cat.set(c, (cat.get(c) || 0) + 1);
     if (isSports) sports++;
